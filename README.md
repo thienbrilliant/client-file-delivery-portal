@@ -4,70 +4,29 @@
 
 Client File Delivery Portal is a production-oriented foundation for a calm, professional SaaS that stores project files and delivers them securely to clients.
 
-Milestone 1 established the application shell, authentication boundary, database model, storage abstraction, theme system, accessibility-oriented UI primitives, security headers, seed data, and developer tooling. Milestone 2 extends that foundation with real customer, project, folder and file-management workflows. Milestone 3 turns those files into secure delivery packages with controlled public sharing. Milestone 4 adds a customer-owned portal, event-based notifications, customer uploads and a restrained UI/UX refinement.
+Milestone 1 established the application shell, authentication boundary, database model, storage abstraction, theme system, accessibility-oriented UI primitives, security headers, seed data, and developer tooling. Milestone 2 extends that foundation with real customer, project, folder and file-management workflows. Milestone 3 turns those files into secure delivery packages with controlled public sharing. Milestone 4 adds a customer-owned portal, event-based notifications, customer uploads and a restrained UI/UX refinement. Milestone 5 adds production storage, account lifecycle management, durable jobs, email infrastructure, distributed rate-limit/cache foundations, health checks, deployment hardening and a second UI refinement pass.
 
-## Features
+## Milestone 5
 
-### Milestone 1
-
-- Next.js App Router with TypeScript strict mode.
-- Vietnamese UI with a replaceable product/brand name.
-- Calm light/dark visual system with system preference support.
-- Auth.js credentials authentication with JWT sessions.
-- Argon2id password hashing.
-- PostgreSQL + Prisma ORM v7 schema.
-- Customer/project/file/delivery/share-link/activity/notification data model.
-- Local storage provider abstraction prepared for S3-compatible providers.
-- Server-side dashboard access boundary and object-scoped query patterns.
-- Baseline security headers.
-- ESLint, Prettier, Vitest, Playwright dependency baseline.
-
-### Milestone 2
-
-- Admin customer listing, search, create and detail views.
-- Project listing, search, create and detail views.
-- Nested project folders with safe names.
-- Multi-file upload through the storage abstraction.
-- Stable storage keys independent of original filenames.
-- Server-side file size/count/name/type validation.
-- Protected file download with Unicode-safe `Content-Disposition`.
-- File rename, move and delete.
-- Empty/loading states and responsive file explorer UI.
-- Project-scoped file search.
-- Activity records for project, folder and file mutations/downloads.
-- Centralized authorization helpers for customer/project/folder/file scope.
-
-### Milestone 3
-
-- Delivery packages referencing existing project files without binary duplication.
-- Server-side cross-project file validation and unique delivery-file membership.
-- Secure 32-byte share tokens stored only as SHA-256 hashes.
-- Optional Argon2id password protection and generated passwords.
-- Server-side expiration and download limits.
-- Atomic PostgreSQL download-limit enforcement for concurrent requests.
-- Public responsive delivery page with password gate.
-- Safe PDF/image previews; arbitrary HTML/SVG is not rendered inline.
-- Secure public downloads with delivery-membership authorization.
-- Share-link revoke and rotate endpoints.
-- Delivery activity and download logging.
-- Admin delivery creation, file selection and share-link management.
-
-### Milestone 4
-
-- Dedicated `/portal` customer experience with customer-only route guard.
-- Customer dashboard, project list/detail and delivery detail views.
-- Customer file viewing and downloads using existing server-side authorization.
-- Server-enforced project-level `customerUploadEnabled` uploads.
-- Customer notification center with unread/read state and mark-all-read.
-- Delivery-created customer notifications with idempotent business-event keys.
-- Admin notifications for customer-upload events.
-- Customer profile editing and Argon2id password change.
-- Calm/warm semantic design tokens, reduced-motion support and responsive customer navigation.
-- Design and customer-portal documentation.
+- Customer lifecycle: invited, active, suspended and disabled.
+- Secure one-time invitation tokens and 48-hour activation flow.
+- Password reset with hashed, short-lived tokens and enumeration-safe responses.
+- Admin suspension, reactivation, disabling, session revocation and soft deletion.
+- Customer account/security UI and refined admin customer detail UI.
+- S3-compatible storage provider for S3, R2, MinIO and B2-style endpoints.
+- Short-lived signed download URLs and direct upload session foundation.
+- Durable PostgreSQL job queue with idempotency and retry semantics.
+- Provider-agnostic email service with development and Resend providers.
+- Redis-backed distributed rate-limit and cache foundations with in-memory fallback.
+- Structured logging and vendor-neutral error reporting hook.
+- Liveness, database and storage health endpoints.
+- Production environment validation and hardened Docker image.
+- Local PostgreSQL, Redis, MinIO and Mailpit development stack.
+- Production, backup/restore, jobs, email, storage and account lifecycle documentation.
 
 ## Tech Stack
 
-- Next.js 16
+- Next.js 16 (Active LTS at the time of Milestone 5)
 - React 19
 - TypeScript
 - Tailwind CSS 4
@@ -75,6 +34,8 @@ Milestone 1 established the application shell, authentication boundary, database
 - Auth.js / `next-auth`
 - Prisma ORM 7
 - PostgreSQL
+- Redis
+- S3-compatible object storage
 - Zod
 - Argon2id
 - Vitest
@@ -91,11 +52,24 @@ npm run db:seed
 npm run dev
 ```
 
+For production-like local infrastructure:
+
+```bash
+docker compose up -d
+```
+
+Run the durable job worker separately:
+
+```bash
+npm run worker
+```
+
 Quality checks:
 
 ```bash
 npm run lint
 npm run typecheck
+npm run format:check
 npm run test
 npm run build
 ```
@@ -116,30 +90,47 @@ Public flow:
 
 See `docs/delivery-system.md` for the lifecycle, token hashing, password protection, expiration, download limits, public authorization and privacy model.
 
-## Customer Portal
+## Customer Accounts
 
-See `docs/customer-portal.md` for route isolation, customer upload permissions, notifications, activity visibility and account security.
+`Admin → Khách hàng → Tạo khách hàng → Gửi lời mời → Customer đặt mật khẩu → ACTIVE`
 
-See `docs/design-system.md` for semantic tokens, motion, responsive behavior and accessibility guidance.
+Account state changes revoke the account session version. Customer deletion is soft by default; business data is retained until a separately designed hard-delete policy is approved and implemented.
+
+See `docs/account-lifecycle.md` for the state diagram and security rules.
+
+## Production
+
+See `docs/production.md` and `docs/production-checklist.md` before deployment. Production uses `prisma migrate deploy`, private object storage, a separate worker process and tested backups/restores.
+
+See `docs/storage.md`, `docs/jobs.md` and `docs/email.md` for infrastructure details.
 
 ## Environment Variables
 
 | Variable | Required | Description |
 | --- | --- | --- |
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `AUTH_SECRET` | Yes | Long random secret used by Auth.js and public delivery access cookies |
-| `AUTH_URL` | Yes in production | Canonical application URL |
+| `AUTH_SECRET` | Yes | Long random secret used by Auth.js and short-lived secret encryption |
+| `AUTH_URL` | Yes in production | Canonical HTTPS application URL |
 | `NEXT_PUBLIC_APP_NAME` | No | Replaceable product/brand name |
-| `STORAGE_PROVIDER` | No | `local` for development |
-| `LOCAL_STORAGE_PATH` | No | Local private storage root |
-| `MAX_FILE_SIZE` | No | Maximum bytes per uploaded file; defaults to 50 MiB |
-| `MAX_FILES_PER_UPLOAD` | No | Maximum files in one request; defaults to 20 |
+| `STORAGE_PROVIDER` | No | `local` for development; `s3`, `r2`, `minio` or `b2` for S3-compatible storage |
+| `S3_ENDPOINT` | For S3-compatible storage | Endpoint URL for R2/MinIO/other providers |
+| `S3_REGION` | For S3-compatible storage | Region or `auto` where supported |
+| `S3_BUCKET` | For S3-compatible storage | Private bucket name |
+| `S3_ACCESS_KEY` | For S3-compatible storage | Least-privilege access key |
+| `S3_SECRET_KEY` | For S3-compatible storage | Least-privilege secret |
+| `SIGNED_URL_EXPIRES_SECONDS` | No | Signed download TTL, capped at 15 minutes |
+| `REDIS_URL` | Recommended in production | Distributed rate limiting and cache |
+| `EMAIL_PROVIDER` | No | `console` or `resend` |
+| `EMAIL_FROM` | Resend | Verified sender address |
+| `RESEND_API_KEY` | Resend | Email provider secret |
+| `INVITATION_TTL_HOURS` | No | Invitation lifetime; defaults to 48 hours |
+| `PASSWORD_RESET_TTL_MINUTES` | No | Password reset lifetime; defaults to 60 minutes |
 
 ## Security
 
-The project uses Argon2id password hashing, server-side authentication, security headers, path traversal protection, private storage, stable object keys and server-side object authorization. Milestone 3 additionally hashes share tokens, signs password-access cookies, rate-limits password verification and atomically enforces download limits. Milestone 4 keeps customer authorization on the server for portal queries and uploads and isolates notifications by authenticated user.
+The project uses Argon2id password hashing, server-side authentication, security headers, path traversal protection, private storage, stable object keys and server-side object authorization. Milestone 3 additionally hashes share tokens, signs password-access cookies, rate-limits password verification and atomically enforces download limits. Milestone 4 keeps customer authorization on the server for portal queries and uploads and isolates notifications by authenticated user. Milestone 5 adds account state enforcement, invitation/reset token hashing, revocable account-version cookies, signed storage URLs, distributed rate limiting, durable job retries and structured error reporting.
 
-Raw share tokens, passwords, storage keys and file content must never be logged.
+Raw passwords, invitation/reset tokens, share tokens, signed URLs, storage credentials, session secrets and file contents must never be logged.
 
 ## Documentation
 
@@ -149,6 +140,12 @@ Raw share tokens, passwords, storage keys and file content must never be logged.
 - `docs/delivery-system.md`
 - `docs/design-system.md`
 - `docs/customer-portal.md`
+- `docs/account-lifecycle.md`
+- `docs/storage.md`
+- `docs/jobs.md`
+- `docs/email.md`
+- `docs/production.md`
+- `docs/production-checklist.md`
 
 ## Code Style
 
