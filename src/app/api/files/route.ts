@@ -1,0 +1,26 @@
+import crypto from 'node:crypto';
+import { requireActor, requireAdmin } from '@/server/require-auth';
+import { canViewProject } from '@/server/permissions';
+import { fileRepository } from '@/server/repositories/file-repository';
+import { folderRepository } from '@/server/repositories/folder-repository';
+import { createStorageProvider } from '@/lib/storage';
+import { AppError, errorResponse } from '@/server/errors';
+import { logActivity } from '@/server/activity';
+
+const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE ?? 52428800);
+const MAX_FILES_PER_UPLOAD = Number(process.env.MAX_FILES_PER_UPLOAD ?? 20);
+const BLOCKED_EXTENSIONS = new Set(['.exe', '.bat', '.cmd', '.ps1', '.sh']);
+
+function validateName(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 255 || trimmed.includes('\0') || trimmed === '.' || trimmed === '..') throw new AppError('INVALID_FILE', 'Tên file không hợp lệ.');
+  return trimmed;
+}
+
+export async function GET(request: Request) {
+  try { const actor = await requireActor(); const url = new URL(request.url); const projectId = url.searchParams.get('projectId'); if (!projectId) throw new AppError('INVALID_FILE', 'Thiếu projectId.'); if (!(await canViewProject(actor, projectId))) throw new AppError('FORBIDDEN', 'Bạn không có quyền truy cập dự án này.', 403); const folderId = url.searchParams.get('folderId'); const q = url.searchParams.get('q')?.trim() || undefined; const page = Math.max(1, Number(url.searchParams.get('page') || 1)); const take = Math.min(100, Math.max(1, Number(url.searchParams.get('pageSize') || 50))); const [items, total] = await fileRepository.list({ projectId, folderId, q, skip: (page - 1) * take, take }); return Response.json({ data: { items, total, page, pageSize: take }, error: null }); } catch (error) { return errorResponse(error); }
+}
+
+export async function POST(request: Request) {
+  try { const actor = await requireAdmin(); const form = await request.formData(); const projectId = String(form.get('projectId') || ''); const folderIdRaw = form.get('folderId'); const folderId = folderIdRaw ? String(folderIdRaw) : null; if (!projectId) throw new AppError('INVALID_FILE', 'Thiếu projectId.'); if (folderId) { const folder = await folderRepository.findById(folderId); if (!folder || folder.projectId !== projectId) throw new AppError('INVALID_FOLDER', 'Thư mục không thuộc dự án này.'); } const entries = form.getAll('files').filter((v): v is File => v instanceof File); if (!entries.length) throw new AppError('INVALID_FILE', 'Chưa chọn file.'); if (entries.length > MAX_FILES_PER_UPLOAD) throw new AppError('INVALID_FILE', `Chỉ được tải tối đa ${MAX_FILES_PER_UPLOAD} file mỗi lần.`); const storage = createStorageProvider(); const created = []; for (const file of entries) { if (file.size > MAX_FILE_SIZE) throw new AppError('FILE_TOO_LARGE', `File ${file.name} vượt quá giới hạn kích thước.`); const originalName = validateName(file.name); const ext = originalName.includes('.') ? originalName.slice(originalName.lastIndexOf('.')).toLowerCase() : ''; if (BLOCKED_EXTENSIONS.has(ext)) throw new AppError('INVALID_FILE', `Không cho phép tải lên loại file ${ext}.`); const id = crypto.randomUUID(); const storageKey = `projects/${projectId}/files/${id}`; const buffer = Buffer.from(await file.arrayBuffer()); const checksum = crypto.createHash('sha256').update(buffer).digest('hex'); try { await storage.upload(buffer, storageKey, { 'content-type': file.type || 'application/octet-stream' }); const item = await fileRepository.create({ projectId, folderId, originalName, storedName: id, mimeType: file.type || 'application/octet-stream', size: BigInt(file.size), storageKey, checksum, uploadedById: actor.id }); await logActivity({ userId: actor.id, projectId, action: 'FILE_UPLOADED', metadata: { fileId: item.id, fileName: originalName, folderId } }); created.push(item); } catch (error) { try { await storage.delete(storageKey); } catch {} throw error; } } return Response.json({ data: created, error: null }, { status: 201 }); } catch (error) { return errorResponse(error); }
+}
