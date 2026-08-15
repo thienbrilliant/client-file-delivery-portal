@@ -5,6 +5,13 @@ import { prisma } from '@/lib/db/prisma';
 import { verifyPassword } from '@/lib/security/password';
 import { signInSchema } from '@/lib/validation/auth';
 
+const USER_ROLES = ['ADMIN', 'CUSTOMER'] as const;
+type UserRole = (typeof USER_ROLES)[number];
+
+function isUserRole(value: unknown): value is UserRole {
+  return typeof value === 'string' && USER_ROLES.includes(value as UserRole);
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: 'jwt' },
@@ -45,7 +52,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
+      if (session.user && typeof token.id === 'string' && isUserRole(token.role)) {
         session.user.id = token.id;
         session.user.role = token.role;
       }
