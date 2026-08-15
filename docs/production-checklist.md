@@ -1,0 +1,28 @@
+# Production Checklist
+
+- [ ] Production `DATABASE_URL`
+- [ ] Strong `AUTH_SECRET`
+- [ ] Private S3-compatible bucket
+- [ ] Least-privilege storage credentials
+- [ ] HTTPS and secure cookies
+- [ ] Production email provider configured
+- [ ] Redis configured for distributed limits/cache where used
+- [ ] Database migrations deployed with `prisma migrate deploy`
+- [ ] Daily database backup configured
+- [ ] Storage versioning/backup configured where supported
+- [ ] Restore procedure tested
+- [ ] Web health checks green
+- [ ] Storage health check green
+- [ ] Worker running and monitored
+- [ ] Failed jobs visible and retriable
+- [ ] Error tracking configured
+- [ ] Structured logs configured
+- [ ] Log redaction verified
+- [ ] Customer invitation tested
+- [ ] Password reset tested
+- [ ] Session revocation tested
+- [ ] Suspended/disabled login rejected
+- [ ] Signed download URL tested
+- [ ] Direct upload session tested
+- [ ] CI lint/typecheck/tests/build green
+- [ ] Staging uses isolated database/storage
