@@ -2,6 +2,13 @@ import { auth } from './auth';
 import { prisma } from '@/lib/db/prisma';
 
 export const proxy = auth(async (request) => {
+  const pathname = request.nextUrl.pathname;
+  const isStateChanging = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method);
+  if (isStateChanging && pathname.startsWith('/api/')) {
+    const origin = request.headers.get('origin');
+    const configuredOrigin = process.env.AUTH_URL || process.env.NEXT_PUBLIC_APP_URL;
+    if (origin && configuredOrigin && origin !== new URL(configuredOrigin).origin) return new Response(JSON.stringify({ data: null, error: { code: 'CSRF_REJECTED', message: 'Yêu cầu không hợp lệ.' } }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+  }
   const userId = request.auth?.user?.id;
   if (!userId) return Response.redirect(new URL('/dang-nhap', request.url));
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { status: true, deletedAt: true, sessionVersion: true } });
