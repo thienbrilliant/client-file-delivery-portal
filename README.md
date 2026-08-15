@@ -4,7 +4,7 @@
 
 Client File Delivery Portal is a production-oriented foundation for a calm, professional SaaS that stores project files and delivers them securely to clients.
 
-Milestone 1 establishes the application shell, authentication boundary, database model, storage abstraction, theme system, accessibility-oriented UI primitives, security headers, seed data, and developer tooling. Feature milestones build on this foundation without moving business logic into React components.
+Milestone 1 established the application shell, authentication boundary, database model, storage abstraction, theme system, accessibility-oriented UI primitives, security headers, seed data, and developer tooling. Milestone 2 extends that foundation with real customer, project, folder and file-management workflows.
 
 ## Features
 
@@ -22,6 +22,24 @@ Milestone 1 establishes the application shell, authentication boundary, database
 - Baseline security headers.
 - ESLint, Prettier, Vitest, Playwright dependency baseline.
 - Dockerfile and local PostgreSQL docker compose file.
+
+### Milestone 2
+
+- Admin customer listing, search, create and detail views.
+- Project listing, search, create and detail views.
+- Nested project folders with safe names.
+- Multi-file upload through the storage abstraction.
+- Stable storage keys independent of original filenames.
+- Server-side file size/count/name/type validation.
+- Protected file download with Unicode-safe `Content-Disposition`.
+- File rename, move and delete.
+- Empty/loading states and responsive file explorer UI.
+- Project-scoped file search.
+- Activity records for project, folder and file mutations/downloads.
+- Centralized authorization helpers for customer/project/folder/file scope.
+- Documentation for architecture, authorization and file lifecycle.
+
+Delivery/share-link functionality remains intentionally outside Milestone 2.
 
 ## Tech Stack
 
@@ -49,7 +67,6 @@ src/
 ├── components/
 │   ├── ui/
 │   └── layout/
-├── features/
 ├── lib/
 │   ├── auth/
 │   ├── db/
@@ -59,20 +76,20 @@ src/
 │   └── validation/
 ├── server/
 │   ├── repositories/
-│   └── services/
+│   ├── services/
+│   ├── permissions.ts
+│   └── require-auth.ts
 ├── types/
 └── config/
 ```
 
-Business rules should live in `server/services` and authorization helpers, while repositories own Prisma query composition. React components are presentation and interaction boundaries.
+Business rules should live in server services/authorization helpers, repositories own Prisma query composition, and React components are presentation and interaction boundaries.
 
 ## Requirements
 
 - Node.js 22.x recommended.
 - PostgreSQL 17 for local development.
 - npm 10+.
-
-Prisma ORM v7 requires Node.js 20.19+ and recommends Node.js 22.x. The project uses the Prisma Config file because Prisma v7 moved datasource configuration there.
 
 ## Installation
 
@@ -87,7 +104,7 @@ Start PostgreSQL:
 docker compose up -d postgres
 ```
 
-Generate Prisma Client and create the initial database migration:
+Generate Prisma Client and create the database migration:
 
 ```bash
 npm run db:generate
@@ -101,8 +118,6 @@ Start the application:
 npm run dev
 ```
 
-Open `http://localhost:3000`.
-
 ## Seed Credentials
 
 Development seed credentials:
@@ -111,11 +126,9 @@ Development seed credentials:
 - Customer: `customer@example.com`
 - Password: `ChangeMe123!`
 
-These credentials are development-only. Change or remove them before using any shared environment.
+These credentials are development-only.
 
 ## Environment Variables
-
-Copy `.env.example` to `.env`.
 
 | Variable | Required | Description |
 | --- | --- | --- |
@@ -123,10 +136,10 @@ Copy `.env.example` to `.env`.
 | `AUTH_SECRET` | Yes | Long random secret used by Auth.js |
 | `AUTH_URL` | Yes in production | Canonical application URL |
 | `NEXT_PUBLIC_APP_NAME` | No | Replaceable product/brand name |
-| `STORAGE_PROVIDER` | No | `local` for Milestone 1 |
+| `STORAGE_PROVIDER` | No | `local` for development |
 | `LOCAL_STORAGE_PATH` | No | Local private storage root |
-| `MAX_FILE_SIZE_BYTES` | No | Upload limit configuration |
-| `MAX_FILES_PER_UPLOAD` | No | Multi-file upload limit |
+| `MAX_FILE_SIZE` | No | Maximum bytes per uploaded file; defaults to 50 MiB |
+| `MAX_FILES_PER_UPLOAD` | No | Maximum files in one request; defaults to 20 |
 
 ## Development
 
@@ -141,44 +154,35 @@ npm run format:check
 npm run build
 ```
 
-## Database
-
-The Prisma schema includes the full MVP domain model, including Auth.js-compatible account/session tables.
-
-Prisma v7 uses `prisma.config.ts` for the datasource connection. The generated client is placed in `src/generated/prisma` and is not committed.
-
 ## Storage
 
-Business logic depends on the `StorageProvider` interface rather than a vendor SDK.
+Business logic depends on the `StorageProvider` interface rather than a vendor SDK. Milestone 2 uses `LocalStorageProvider` for development. Object keys are stable (`projects/{projectId}/files/{fileId}`), while the original filename remains metadata.
 
-Milestone 1 provides `LocalStorageProvider` for development. Later milestones can add S3, Cloudflare R2, MinIO, or another S3-compatible implementation without changing file business logic.
+Local storage is private and rejects path traversal. Downloads go through an authenticated server endpoint.
 
-Private storage should remain non-public. Secure download endpoints or short-lived signed URLs should sit between a user and the object store.
+## Authorization
 
-## Authentication
+Milestone 2 uses one identity model: `User` plus optional `CustomerProfile`. `Project.customerId` references the customer `User.id`.
 
-Auth.js protects the dashboard route boundary. Credentials are validated on the server using Zod and passwords are verified with Argon2id.
+- `ADMIN`: manage customers, projects, folders and files.
+- `CUSTOMER`: view only projects owned by that customer and the files/folders inside them.
+- Cross-project access is rejected server-side.
 
-The session contains only a user ID and role needed by the application boundary. Raw passwords and share tokens are never stored.
-
-## Production Deployment
-
-A production deployment should use:
-
-- Managed PostgreSQL.
-- S3-compatible private object storage.
-- Strong `AUTH_SECRET`.
-- HTTPS only.
-- Secure cookies and a trusted canonical `AUTH_URL`.
-- Application-level rate limiting for credential and public-link endpoints.
-- Centralized structured logging.
-- Automated migrations during deployment.
-
-The Dockerfile uses the Next.js standalone output.
+See `docs/authorization.md` and `docs/file-management.md` for the detailed model.
 
 ## Testing
 
-The first security tests cover share-token entropy and constant-time hash comparison helpers. Milestone 2 and later milestones must add authorization and object-level access tests before those features are accepted.
+The CI pipeline runs Prisma generation, migrations, typecheck, lint, tests and production build. Milestone 2 should add object-level authorization and end-to-end upload/download coverage before the milestone is considered production-ready.
+
+## Security
+
+The project starts with Argon2id password hashing, server-side authentication, role-aware sessions, security headers, path traversal protection, private storage, stable object keys and server-side object authorization.
+
+## Documentation
+
+- `docs/architecture.md`
+- `docs/authorization.md`
+- `docs/file-management.md`
 
 ## Code Style
 
@@ -188,29 +192,6 @@ The first security tests cover share-token entropy and constant-time hash compar
 - English comments for source-code rationale.
 - Vietnamese text for end-user UI.
 - Avoid `any` unless a third-party boundary genuinely requires it.
-
-## Security
-
-The project starts with:
-
-- Argon2id password hashing.
-- Server-side authentication.
-- Server-side role data in the session.
-- Baseline security response headers.
-- Path traversal protection in local storage.
-- SHA-256 hashing for share tokens.
-- No raw share token persistence.
-- Private local storage by design.
-
-The remaining security controls are milestone-specific and are not represented as completed before their implementation exists.
-
-## Project Structure
-
-The project favors narrow files and feature-oriented boundaries. New delivery features should normally be introduced under `features/`, their domain services under `server/services/`, repository queries under `server/repositories/`, validation under `lib/validation/`, and reusable UI under `components/`.
-
-## Contributing
-
-Use Conventional Commits, keep changes scoped, run typecheck/lint/tests before opening a pull request, and update the README when developer-facing behavior changes.
 
 ## License
 
