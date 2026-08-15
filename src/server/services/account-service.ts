@@ -10,16 +10,16 @@ export const accountService = {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, status: true, deletedAt: true } });
     if (!user || user.deletedAt) throw new AppError('CUSTOMER_NOT_FOUND', 'Không tìm thấy khách hàng.', 404);
     if (user.status === 'DISABLED') throw new AppError('FORBIDDEN', 'Tài khoản đã bị vô hiệu hóa.', 409);
+    if (user.status !== 'INVITED') throw new AppError('FORBIDDEN', 'Chỉ tài khoản đang chờ kích hoạt mới có thể gửi lại lời mời.', 409);
     const token = createSecureToken();
     const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async tx => {
       await tx.accountInvitation.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date() } });
       await tx.accountInvitation.create({ data: { userId, tokenHash: hashToken(token), expiresAt } });
       await tx.user.update({ where: { id: userId }, data: { status: 'INVITED', passwordHash: null, sessionVersion: { increment: 1 } } });
     });
     return { token, email: user.email, expiresAt };
   },
-
   async activateInvitation(token: string, passwordHash: string) {
     const invitation = await prisma.accountInvitation.findUnique({ where: { tokenHash: hashToken(token) }, include: { user: true } });
     if (!invitation || invitation.usedAt || invitation.expiresAt <= new Date()) throw new AppError('INVALID_INVITATION', 'Liên kết kích hoạt không hợp lệ hoặc đã hết hạn.', 400);
@@ -31,13 +31,11 @@ export const accountService = {
     ]);
     return { id: invitation.user.id, email: invitation.user.email };
   },
-
   async requestPasswordReset(email: string) {
     const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() }, select: { id: true, email: true, status: true, deletedAt: true } });
     if (!user || user.deletedAt || user.status === 'DISABLED') return null;
-    const token = createSecureToken();
-    const expiresAt = new Date(Date.now() + RESET_TTL_MS);
-    await prisma.$transaction(async (tx) => {
+    const token = createSecureToken(); const expiresAt = new Date(Date.now() + RESET_TTL_MS);
+    await prisma.$transaction(async tx => {
       await tx.passwordResetToken.updateMany({ where: { userId: user.id, usedAt: null }, data: { usedAt: new Date() } });
       await tx.passwordResetToken.create({ data: { userId: user.id, tokenHash: hashToken(token), expiresAt } });
       await tx.user.update({ where: { id: user.id }, data: { sessionVersion: { increment: 1 } } });
@@ -45,7 +43,6 @@ export const accountService = {
     });
     return { token, email: user.email, expiresAt };
   },
-
   async resetPassword(token: string, passwordHash: string) {
     const item = await prisma.passwordResetToken.findUnique({ where: { tokenHash: hashToken(token) } });
     if (!item || item.usedAt || item.expiresAt <= new Date()) throw new AppError('INVALID_RESET_TOKEN', 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.', 400);
@@ -55,7 +52,6 @@ export const accountService = {
       prisma.activityLog.create({ data: { userId: item.userId, action: 'CUSTOMER_PASSWORD_RESET' } }),
     ]);
   },
-
   async setStatus(userId: string, status: 'SUSPENDED' | 'ACTIVE' | 'DISABLED', actorId: string) {
     if (userId === actorId) throw new AppError('FORBIDDEN', 'Bạn không thể thay đổi trạng thái tài khoản của chính mình.', 400);
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
@@ -64,22 +60,20 @@ export const accountService = {
     await prisma.activityLog.create({ data: { userId, action: `CUSTOMER_${status}`, metadata: { actorId } } });
     return next;
   },
-
   async revokeSessions(userId: string, actorId: string) {
     if (userId === actorId) throw new AppError('FORBIDDEN', 'Bạn không thể thu hồi phiên của chính mình bằng thao tác này.', 400);
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async tx => {
       const user = await tx.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } }, select: { sessionVersion: true } });
       const sessions = await tx.session.deleteMany({ where: { userId } });
       await tx.activityLog.create({ data: { userId, action: 'CUSTOMER_SESSIONS_REVOKED', metadata: { actorId } } });
       return { deletedSessions: sessions.count, sessionVersion: user.sessionVersion };
     });
   },
-
   async softDelete(userId: string, actorId: string) {
     if (userId === actorId) throw new AppError('FORBIDDEN', 'Bạn không thể xóa tài khoản của chính mình.', 400);
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
     if (!user || user.role !== 'CUSTOMER') throw new AppError('CUSTOMER_NOT_FOUND', 'Không tìm thấy khách hàng.', 404);
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async tx => {
       await tx.user.update({ where: { id: userId }, data: { status: 'DISABLED', deletedAt: new Date(), sessionVersion: { increment: 1 } } });
       await tx.session.deleteMany({ where: { userId } });
       await tx.activityLog.create({ data: { userId, action: 'CUSTOMER_DELETE_REQUESTED', metadata: { actorId } } });
