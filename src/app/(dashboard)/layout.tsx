@@ -4,8 +4,7 @@ import { DashboardShell } from '@/components/layout/dashboard-shell';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
-
   if (!session?.user) redirect('/dang-nhap');
-
+  if (session.user.role !== 'ADMIN') redirect('/portal');
   return <DashboardShell userName={session.user.name}>{children}</DashboardShell>;
 }
