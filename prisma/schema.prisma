@@ -3,372 +3,60 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
-datasource db {
-  provider = "postgresql"
-}
-
-enum Role {
-  ADMIN
-  CUSTOMER
-}
-
-enum UserStatus {
-  INVITED
-  ACTIVE
-  SUSPENDED
-  DISABLED
-}
-
-enum ProjectStatus {
-  DRAFT
-  IN_PROGRESS
-  READY
-  ARCHIVED
-}
-
-enum DeliveryStatus {
-  PREPARING
-  READY
-  VIEWED
-  DOWNLOADED
-  EXPIRED
-  REVOKED
-  COMPLETED
-}
-
-enum NotificationType {
-  DELIVERY_READY
-  FILE_DOWNLOADED
-  FILE_UPLOADED
-  PROJECT_UPDATED
-  SYSTEM
-}
-
-enum JobStatus {
-  PENDING
-  RUNNING
-  COMPLETED
-  FAILED
-}
-
-enum UploadStatus {
-  PENDING
-  UPLOADING
-  COMPLETED
-  FAILED
-  EXPIRED
-  CANCELED
-}
+datasource db { provider = "postgresql" }
+enum Role { ADMIN CUSTOMER }
+enum UserStatus { INVITED ACTIVE SUSPENDED DISABLED }
+enum ProjectStatus { DRAFT IN_PROGRESS READY ARCHIVED }
+enum DeliveryStatus { PREPARING READY VIEWED DOWNLOADED EXPIRED REVOKED COMPLETED }
+enum NotificationType { DELIVERY_READY FILE_DOWNLOADED FILE_UPLOADED PROJECT_UPDATED SYSTEM }
+enum JobStatus { PENDING RUNNING COMPLETED FAILED }
+enum UploadStatus { PENDING UPLOADING COMPLETED FAILED EXPIRED CANCELED }
 
 model User {
-  id              String        @id @default(cuid())
-  email           String        @unique
-  emailVerified   DateTime?
-  passwordHash    String?
-  name            String?
-  avatarUrl       String?
-  role            Role          @default(CUSTOMER)
-  status          UserStatus    @default(INVITED)
-  lastLoginAt     DateTime?
-  sessionVersion  Int           @default(0)
-  deletedAt       DateTime?
+  id String @id @default(cuid())
+  email String @unique
+  emailVerified DateTime?
+  passwordHash String?
+  name String?
+  avatarUrl String?
+  role Role @default(CUSTOMER)
+  status UserStatus @default(INVITED)
+  lastLoginAt DateTime?
+  sessionVersion Int @default(0)
+  deletedAt DateTime?
   customerProfile CustomerProfile?
-  projectsOwned   Project[]     @relation("ProjectCustomer")
-  filesUploaded   File[]        @relation("FileUploader")
-  downloadLogs    DownloadLog[]
-  activities      ActivityLog[]
-  notifications   Notification[]
-  accounts        Account[]
-  sessions        Session[]
-  invitations     AccountInvitation[]
-  passwordResets  PasswordResetToken[]
-  jobsCreated     Job[]         @relation("JobCreator")
-  uploadSessions  UploadSession[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
+  projectsOwned Project[] @relation("ProjectCustomer")
+  filesUploaded File[] @relation("FileUploader")
+  downloadLogs DownloadLog[]
+  activities ActivityLog[]
+  notifications Notification[]
+  accounts Account[]
+  sessions Session[]
+  invitations AccountInvitation[]
+  passwordResets PasswordResetToken[]
+  jobsCreated Job[] @relation("JobCreator")
+  uploadSessions UploadSession[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   @@index([role])
   @@index([status])
   @@index([createdAt])
 }
-
-model CustomerProfile {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  companyName String?
-  phone       String?
-  notes       String?
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model Project {
-  id                   String          @id @default(cuid())
-  customerId           String
-  name                 String
-  description          String?
-  status               ProjectStatus   @default(DRAFT)
-  customerUploadEnabled Boolean        @default(false)
-  customer             User            @relation("ProjectCustomer", fields: [customerId], references: [id], onDelete: Cascade)
-  folders              Folder[]
-  files                File[]
-  deliveries           Delivery[]
-  activities           ActivityLog[]
-  uploadSessions       UploadSession[]
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
-
-  @@index([customerId])
-  @@index([status])
-  @@index([createdAt])
-  @@index([updatedAt])
-}
-
-model Folder {
-  id        String   @id @default(cuid())
-  projectId String
-  parentId  String?
-  name      String
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  parent    Folder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children  Folder[] @relation("FolderTree")
-  files     File[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([projectId])
-  @@index([parentId])
-}
-
-model File {
-  id           String         @id @default(cuid())
-  projectId    String
-  folderId     String?
-  originalName String
-  storedName   String
-  mimeType     String
-  size         BigInt
-  storageKey   String         @unique
-  checksum     String?
-  uploadedById String
-  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  folder       Folder?        @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  uploadedBy   User           @relation("FileUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
-  deliveryFiles DeliveryFile[]
-  downloadLogs DownloadLog[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-
-  @@index([projectId])
-  @@index([folderId])
-  @@index([uploadedById])
-  @@index([createdAt])
-}
-
-model Delivery {
-  id                 String         @id @default(cuid())
-  projectId          String
-  title              String
-  description        String?
-  status             DeliveryStatus @default(PREPARING)
-  expiresAt          DateTime?
-  allowCustomerUpload Boolean       @default(false)
-  project            Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  files              DeliveryFile[]
-  shareLinks         ShareLink[]
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-
-  @@index([projectId])
-  @@index([status])
-  @@index([expiresAt])
-  @@index([createdAt])
-}
-
-model DeliveryFile {
-  id         String   @id @default(cuid())
-  deliveryId String
-  fileId     String
-  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
-  file       File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
-
-  @@unique([deliveryId, fileId])
-  @@index([deliveryId])
-  @@index([fileId])
-}
-
-model ShareLink {
-  id             String       @id @default(cuid())
-  deliveryId     String
-  tokenHash      String       @unique
-  passwordHash   String?
-  expiresAt      DateTime?
-  maxDownloads   Int?
-  downloadCount  Int          @default(0)
-  isActive       Boolean      @default(true)
-  lastAccessedAt DateTime?
-  delivery       Delivery     @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
-  downloadLogs   DownloadLog[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  @@index([deliveryId])
-  @@index([expiresAt])
-  @@index([isActive])
-}
-
-model DownloadLog {
-  id          String     @id @default(cuid())
-  fileId      String
-  userId      String?
-  shareLinkId String?
-  ipAddress   String?
-  userAgent   String?
-  file        File       @relation(fields: [fileId], references: [id], onDelete: Cascade)
-  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  shareLink   ShareLink? @relation(fields: [shareLinkId], references: [id], onDelete: SetNull)
-  createdAt   DateTime   @default(now())
-
-  @@index([fileId])
-  @@index([userId])
-  @@index([shareLinkId])
-  @@index([createdAt])
-}
-
-model ActivityLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  projectId String?
-  action    String
-  metadata  Json?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-  @@index([projectId])
-  @@index([createdAt])
-}
-
-model Notification {
-  id         String           @id @default(cuid())
-  userId     String
-  type       NotificationType
-  title      String
-  message    String
-  href       String?
-  dedupeKey  String?          @unique
-  isRead     Boolean          @default(false)
-  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt  DateTime         @default(now())
-
-  @@index([userId, isRead])
-  @@index([createdAt])
-}
-
-model AccountInvitation {
-  id        String   @id @default(cuid())
-  userId    String
-  tokenHash String   @unique
-  expiresAt DateTime
-  usedAt   DateTime?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([expiresAt])
-}
-
-model PasswordResetToken {
-  id        String   @id @default(cuid())
-  userId    String
-  tokenHash String   @unique
-  expiresAt DateTime
-  usedAt   DateTime?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([expiresAt])
-}
-
-model Job {
-  id             String    @id @default(cuid())
-  type           String
-  status         JobStatus @default(PENDING)
-  payload        Json
-  idempotencyKey String    @unique
-  attempts       Int       @default(0)
-  maxAttempts    Int       @default(3)
-  lastError      String?
-  availableAt    DateTime  @default(now())
-  startedAt      DateTime?
-  completedAt    DateTime?
-  createdById    String?
-  createdBy      User?     @relation("JobCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  @@index([status, availableAt])
-  @@index([type, status])
-  @@index([createdAt])
-}
-
-model UploadSession {
-  id           String       @id @default(cuid())
-  projectId    String
-  userId       String
-  storageKey   String
-  status       UploadStatus @default(PENDING)
-  totalSize    BigInt
-  uploadedSize BigInt       @default(0)
-  mimeType     String
-  originalName String
-  chunkSize    Int
-  expiresAt    DateTime
-  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-
-  @@index([projectId])
-  @@index([userId])
-  @@index([status, expiresAt])
-}
-
-model Account {
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?
-  access_token       String?
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?
-  session_state      String?
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([provider, providerAccountId])
-  @@index([userId])
-}
-
-model Session {
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-}
+model CustomerProfile { id String @id @default(cuid()); userId String @unique; companyName String?; phone String?; notes String?; user User @relation(fields: [userId], references: [id], onDelete: Cascade); createdAt DateTime @default(now()); updatedAt DateTime @updatedAt }
+model Project { id String @id @default(cuid()); customerId String; name String; description String?; status ProjectStatus @default(DRAFT); customerUploadEnabled Boolean @default(false); customer User @relation("ProjectCustomer", fields: [customerId], references: [id], onDelete: Cascade); folders Folder[]; files File[]; deliveries Delivery[]; activities ActivityLog[]; uploadSessions UploadSession[]; createdAt DateTime @default(now()); updatedAt DateTime @updatedAt; @@index([customerId]); @@index([status]); @@index([createdAt]); @@index([updatedAt]) }
+model Folder { id String @id @default(cuid()); projectId String; parentId String?; name String; project Project @relation(fields: [projectId], references: [id], onDelete: Cascade); parent Folder? @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade); children Folder[] @relation("FolderTree"); files File[]; createdAt DateTime @default(now()); updatedAt DateTime @updatedAt; @@index([projectId]); @@index([parentId]) }
+model File { id String @id @default(cuid()); projectId String; folderId String?; originalName String; storedName String; mimeType String; size BigInt; storageKey String @unique; checksum String?; uploadedById String; project Project @relation(fields: [projectId], references: [id], onDelete: Cascade); folder Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull); uploadedBy User @relation("FileUploader", fields: [uploadedById], references: [id], onDelete: Restrict); deliveryFiles DeliveryFile[]; downloadLogs DownloadLog[]; createdAt DateTime @default(now()); updatedAt DateTime @updatedAt; @@index([projectId]); @@index([folderId]); @@index([uploadedById]); @@index([createdAt]) }
+model Delivery { id String @id @default(cuid()); projectId String; title String; description String?; status DeliveryStatus @default(PREPARING); expiresAt DateTime?; allowCustomerUpload Boolean @default(false); project Project @relation(fields: [projectId], references: [id], onDelete: Cascade); files DeliveryFile[]; shareLinks ShareLink[]; createdAt DateTime @default(now()); updatedAt DateTime @updatedAt; @@index([projectId]); @@index([status]); @@index([expiresAt]); @@index([createdAt]) }
+model DeliveryFile { id String @id @default(cuid()); deliveryId String; fileId String; delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade); file File @relation(fields: [fileId], references: [id], onDelete: Cascade); createdAt DateTime @default(now()); @@unique([deliveryId, fileId]); @@index([deliveryId]); @@index([fileId]) }
+model ShareLink { id String @id @default(cuid()); deliveryId String; tokenHash String @unique; passwordHash String?; expiresAt DateTime?; maxDownloads Int?; downloadCount Int @default(0); isActive Boolean @default(true); lastAccessedAt DateTime?; delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade); downloadLogs DownloadLog[]; createdAt DateTime @default(now()); updatedAt DateTime @updatedAt; @@index([deliveryId]); @@index([expiresAt]); @@index([isActive]) }
+model DownloadLog { id String @id @default(cuid()); fileId String; userId String?; shareLinkId String?; ipAddress String?; userAgent String?; file File @relation(fields: [fileId], references: [id], onDelete: Cascade); user User? @relation(fields: [userId], references: [id], onDelete: SetNull); shareLink ShareLink? @relation(fields: [shareLinkId], references: [id], onDelete: SetNull); createdAt DateTime @default(now()); @@index([fileId]); @@index([userId]); @@index([shareLinkId]); @@index([createdAt]) }
+model ActivityLog { id String @id @default(cuid()); userId String?; projectId String?; action String; metadata Json?; user User? @relation(fields: [userId], references: [id], onDelete: SetNull); project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull); createdAt DateTime @default(now()); @@index([userId]); @@index([projectId]); @@index([createdAt]) }
+model Notification { id String @id @default(cuid()); userId String; type NotificationType; title String; message String; href String?; dedupeKey String? @unique; isRead Boolean @default(false); user User @relation(fields: [userId], references: [id], onDelete: Cascade); createdAt DateTime @default(now()); @@index([userId, isRead]); @@index([createdAt]) }
+model AccountInvitation { id String @id @default(cuid()); userId String; tokenHash String @unique; expiresAt DateTime; usedAt DateTime?; createdAt DateTime @default(now()); user User @relation(fields: [userId], references: [id], onDelete: Cascade); @@index([userId]); @@index([expiresAt]) }
+model PasswordResetToken { id String @id @default(cuid()); userId String; tokenHash String @unique; expiresAt DateTime; usedAt DateTime?; createdAt DateTime @default(now()); user User @relation(fields: [userId], references: [id], onDelete: Cascade); @@index([userId]); @@index([expiresAt]) }
+model Job { id String @id @default(cuid()); type String; status JobStatus @default(PENDING); payload Json; idempotencyKey String @unique; attempts Int @default(0); maxAttempts Int @default(3); lastError String?; availableAt DateTime @default(now()); startedAt DateTime?; completedAt DateTime?; createdById String?; createdBy User? @relation("JobCreator", fields: [createdById], references: [id], onDelete: SetNull); createdAt DateTime @default(now()); updatedAt DateTime @updatedAt; @@index([status, availableAt]); @@index([type, status]); @@index([createdAt]) }
+model UploadSession { id String @id @default(cuid()); projectId String; userId String; storageKey String; status UploadStatus @default(PENDING); totalSize BigInt; uploadedSize BigInt @default(0); mimeType String; originalName String; chunkSize Int; expiresAt DateTime; project Project @relation(fields: [projectId], references: [id], onDelete: Cascade); user User @relation(fields: [userId], references: [id], onDelete: Cascade); parts UploadPart[]; createdAt DateTime @default(now()); updatedAt DateTime @updatedAt; @@index([projectId]); @@index([userId]); @@index([status, expiresAt]) }
+model UploadPart { id String @id @default(cuid()); uploadSessionId String; partNumber Int; etag String?; size BigInt; completedAt DateTime?; uploadSession UploadSession @relation(fields: [uploadSessionId], references: [id], onDelete: Cascade); createdAt DateTime @default(now()); @@unique([uploadSessionId, partNumber]); @@index([uploadSessionId]); }
+model Account { userId String; type String; provider String; providerAccountId String; refresh_token String?; access_token String?; expires_at Int?; token_type String?; scope String?; id_token String?; session_state String?; user User @relation(fields: [userId], references: [id], onDelete: Cascade); @@id([provider, providerAccountId]); @@index([userId]) }
+model Session { sessionToken String @unique; userId String; expires DateTime; user User @relation(fields: [userId], references: [id], onDelete: Cascade); @@index([userId]) }
+model VerificationToken { identifier String; token String @unique; expires DateTime; @@unique([identifier, token]) }
