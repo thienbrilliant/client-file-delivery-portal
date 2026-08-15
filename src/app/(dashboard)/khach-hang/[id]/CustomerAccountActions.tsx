@@ -16,6 +16,7 @@ export function CustomerAccountActions({ id, status }: { id: string; status: str
   }
   async function invite() { const data = await request(`/api/customers/${id}/invitation`); if (data?.activationUrl) { await navigator.clipboard.writeText(data.activationUrl); window.alert('Đã tạo lời mời mới và sao chép link kích hoạt.'); } }
   async function reset() { if (!window.confirm('Gửi yêu cầu đặt lại mật khẩu cho khách hàng này?')) return; await request(`/api/customers/${id}/password-reset`); }
+  async function remove() { if (!window.confirm('Xóa tài khoản khách hàng? Tài khoản sẽ bị vô hiệu hóa và dữ liệu dự án/file sẽ được giữ lại.')) return; await request(`/api/customers/${id}/account`, { action: 'delete' }); }
   return <div className="flex flex-wrap gap-2">
     {status === 'INVITED' && <button disabled={busy} onClick={invite} className="rounded-[9px] border border-[var(--border)] px-3 py-2 text-sm font-medium">Gửi lại lời mời</button>}
     {status !== 'INVITED' && status !== 'DISABLED' && <button disabled={busy} onClick={reset} className="rounded-[9px] border border-[var(--border)] px-3 py-2 text-sm font-medium">Yêu cầu đặt lại mật khẩu</button>}
@@ -23,5 +24,6 @@ export function CustomerAccountActions({ id, status }: { id: string; status: str
     {status === 'ACTIVE' && <button disabled={busy} onClick={() => run('suspend')} className="rounded-[9px] border border-[var(--border)] px-3 py-2 text-sm font-medium">Tạm khóa</button>}
     {(status === 'ACTIVE' || status === 'SUSPENDED' || status === 'INVITED') && <button disabled={busy} onClick={() => run('revoke-sessions')} className="rounded-[9px] border border-[var(--border)] px-3 py-2 text-sm font-medium">Đăng xuất tất cả</button>}
     {status !== 'DISABLED' && <button disabled={busy} onClick={() => run('disable')} className="rounded-[9px] border border-red-200 px-3 py-2 text-sm font-medium text-red-700">Vô hiệu hóa</button>}
+    {status !== 'DISABLED' && <button disabled={busy} onClick={remove} className="rounded-[9px] border border-red-300 px-3 py-2 text-sm font-medium text-red-700">Xóa tài khoản</button>}
   </div>;
 }
