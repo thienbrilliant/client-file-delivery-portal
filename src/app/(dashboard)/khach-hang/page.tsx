@@ -25,7 +25,6 @@ export default function CustomersPage() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function loadInitialCustomers() {
       const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
       const json = await res.json();
@@ -33,73 +32,18 @@ export default function CustomersPage() {
       setItems(json.data?.items ?? []);
       setLoading(false);
     }
-
+    // The effect synchronizes this client view with the server's customer collection.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadInitialCustomers();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [q]);
 
   return (
     <SectionPage title="Khách hàng" description="Quản lý hồ sơ khách hàng và các dự án được bàn giao." icon={Users}>
       <div className="space-y-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:max-w-sm">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-[var(--muted)]" />
-            <Input value={q} onChange={(event) => setQ(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && void load()} placeholder="Tìm khách hàng..." className="pl-9" />
-          </div>
-          <Button onClick={() => document.getElementById('customer-form')?.scrollIntoView({ behavior: 'smooth' })}>
-            <Plus className="h-4 w-4" />
-            Thêm khách hàng
-          </Button>
-        </div>
-
-        <div className="overflow-x-auto rounded-[8px] border border-[var(--border)]">
-          <table className="w-full min-w-[680px] text-sm">
-            <thead className="bg-[var(--surface-muted)] text-left text-[var(--muted)]">
-              <tr><th className="px-4 py-3">Khách hàng</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Dự án</th><th className="px-4 py-3">File</th></tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={4} className="px-4 py-12 text-center text-[var(--muted)]">Đang tải...</td></tr>
-              ) : items.length === 0 ? (
-                <tr><td colSpan={4} className="px-4 py-12 text-center text-[var(--muted)]">Chưa có khách hàng.</td></tr>
-              ) : items.map((customer) => (
-                <tr key={customer.id} className="border-t border-[var(--border)]">
-                  <td className="px-4 py-3 font-medium"><Link className="hover:underline" href={`/khach-hang/${customer.id}`}>{customer.name || 'Chưa đặt tên'}</Link></td>
-                  <td className="px-4 py-3 text-[var(--muted)]">{customer.email}</td>
-                  <td className="px-4 py-3">{customer._count.projectsOwned}</td>
-                  <td className="px-4 py-3">{customer._count.filesUploaded}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div id="customer-form" className="rounded-[8px] border border-[var(--border)] p-5">
-          <h2 className="font-semibold">Thêm khách hàng</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <Input placeholder="Họ và tên" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-            <Input placeholder="Email" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
-            <Input placeholder="Công ty" value={form.companyName} onChange={(event) => setForm({ ...form, companyName: event.target.value })} />
-          </div>
-          <div className="mt-3 flex justify-end">
-            <Button
-              disabled={saving}
-              onClick={async () => {
-                setSaving(true);
-                const response = await fetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
-                if (response.ok) {
-                  setForm({ name: '', email: '', companyName: '' });
-                  await load();
-                }
-                setSaving(false);
-              }}
-            >
-              {saving ? 'Đang lưu...' : 'Tạo khách hàng'}
-            </Button>
-          </div>
-        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="relative w-full sm:max-w-sm"><Search className="absolute left-3 top-2.5 h-4 w-4 text-[var(--muted)]" /><Input value={q} onChange={(event) => setQ(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && void load()} placeholder="Tìm khách hàng..." className="pl-9" /></div><Button onClick={() => document.getElementById('customer-form')?.scrollIntoView({ behavior: 'smooth' })}><Plus className="h-4 w-4" />Thêm khách hàng</Button></div>
+        <div className="overflow-x-auto rounded-[8px] border border-[var(--border)]"><table className="w-full min-w-[680px] text-sm"><thead className="bg-[var(--surface-muted)] text-left text-[var(--muted)]"><tr><th className="px-4 py-3">Khách hàng</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Dự án</th><th className="px-4 py-3">File</th></tr></thead><tbody>{loading?<tr><td colSpan={4} className="px-4 py-12 text-center text-[var(--muted)]">Đang tải...</td></tr>:items.length===0?<tr><td colSpan={4} className="px-4 py-12 text-center text-[var(--muted)]">Chưa có khách hàng.</td></tr>:items.map((customer)=><tr key={customer.id} className="border-t border-[var(--border)]"><td className="px-4 py-3 font-medium"><Link className="hover:underline" href={`/khach-hang/${customer.id}`}>{customer.name||'Chưa đặt tên'}</Link></td><td className="px-4 py-3 text-[var(--muted)]">{customer.email}</td><td className="px-4 py-3">{customer._count.projectsOwned}</td><td className="px-4 py-3">{customer._count.filesUploaded}</td></tr>)}</tbody></table></div>
+        <div id="customer-form" className="rounded-[8px] border border-[var(--border)] p-5"><h2 className="font-semibold">Thêm khách hàng</h2><div className="mt-4 grid gap-3 sm:grid-cols-3"><Input placeholder="Họ và tên" value={form.name} onChange={(event)=>setForm({...form,name:event.target.value})}/><Input placeholder="Email" type="email" value={form.email} onChange={(event)=>setForm({...form,email:event.target.value})}/><Input placeholder="Công ty" value={form.companyName} onChange={(event)=>setForm({...form,companyName:event.target.value})}/></div><div className="mt-3 flex justify-end"><Button disabled={saving} onClick={async()=>{setSaving(true);const response=await fetch('/api/customers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)});if(response.ok){setForm({name:'',email:'',companyName:''});await load();}setSaving(false);}}>{saving?'Đang lưu...':'Tạo khách hàng'}</Button></div></div>
       </div>
     </SectionPage>
   );
