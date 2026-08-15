@@ -1,0 +1,17 @@
+import { z } from 'zod';
+import { folderRepository } from '@/server/repositories/folder-repository';
+import { requireActor, requireAdmin } from '@/server/require-auth';
+import { canViewProject, canViewFolder } from '@/server/permissions';
+import { AppError, errorResponse } from '@/server/errors';
+import { logActivity } from '@/server/activity';
+import { prisma } from '@/lib/db/prisma';
+
+const schema = z.object({ projectId: z.string().min(1), parentId: z.string().nullable().optional(), name: z.string().trim().min(1).max(180).refine((v) => !v.includes('/') && !v.includes('\\') && v !== '.' && v !== '..', 'Tên thư mục không hợp lệ.') });
+
+export async function GET(request: Request) {
+  try { const actor = await requireActor(); const url = new URL(request.url); const projectId = url.searchParams.get('projectId'); if (!projectId) throw new AppError('INVALID_FOLDER', 'Thiếu projectId.'); if (!(await canViewProject(actor, projectId))) throw new AppError('FORBIDDEN', 'Bạn không có quyền truy cập dự án này.', 403); const parentId = url.searchParams.get('parentId'); if (parentId && !(await canViewFolder(actor, parentId))) throw new AppError('FORBIDDEN', 'Bạn không có quyền truy cập thư mục này.', 403); const items = await folderRepository.listByProject(projectId, parentId); return Response.json({ data: items, error: null }); } catch (error) { return errorResponse(error); }
+}
+
+export async function POST(request: Request) {
+  try { const actor = await requireAdmin(); const parsed = schema.safeParse(await request.json()); if (!parsed.success) throw new AppError('INVALID_FOLDER', parsed.error.issues[0]?.message ?? 'Dữ liệu không hợp lệ.'); if (parsed.data.parentId) { const parent = await folderRepository.findById(parsed.data.parentId); if (!parent || parent.projectId !== parsed.data.projectId) throw new AppError('INVALID_FOLDER', 'Thư mục cha không thuộc dự án này.'); } const item = await folderRepository.create(parsed.data); await logActivity({ userId: actor.id, projectId: item.projectId, action: 'FOLDER_CREATED', metadata: { folderId: item.id, name: item.name } }); return Response.json({ data: item, error: null }, { status: 201 }); } catch (error) { return errorResponse(error); }
+}
