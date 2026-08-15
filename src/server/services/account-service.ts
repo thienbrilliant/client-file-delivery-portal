@@ -10,14 +10,14 @@ export const accountService = {
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, status: true, deletedAt: true } });
     if (!user || user.deletedAt) throw new AppError('CUSTOMER_NOT_FOUND', 'Không tìm thấy khách hàng.', 404);
     if (user.status === 'DISABLED') throw new AppError('FORBIDDEN', 'Tài khoản đã bị vô hiệu hóa.', 409);
-    const { token, tokenHash } = { token: createSecureToken(), tokenHash: '' };
-    const hashed = hashToken(token);
+    const token = createSecureToken();
+    const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
     await prisma.$transaction(async (tx) => {
       await tx.accountInvitation.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date() } });
-      await tx.accountInvitation.create({ data: { userId, tokenHash: hashed, expiresAt: new Date(Date.now() + INVITATION_TTL_MS) } });
+      await tx.accountInvitation.create({ data: { userId, tokenHash: hashToken(token), expiresAt } });
       await tx.user.update({ where: { id: userId }, data: { status: 'INVITED', passwordHash: null, sessionVersion: { increment: 1 } } });
     });
-    return { token, email: user.email, expiresAt: new Date(Date.now() + INVITATION_TTL_MS) };
+    return { token, email: user.email, expiresAt };
   },
 
   async activateInvitation(token: string, passwordHash: string) {
@@ -58,7 +58,7 @@ export const accountService = {
 
   async setStatus(userId: string, status: 'SUSPENDED' | 'ACTIVE' | 'DISABLED', actorId: string) {
     if (userId === actorId) throw new AppError('FORBIDDEN', 'Bạn không thể thay đổi trạng thái tài khoản của chính mình.', 400);
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true, status: true } });
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, role: true } });
     if (!user || user.role !== 'CUSTOMER') throw new AppError('CUSTOMER_NOT_FOUND', 'Không tìm thấy khách hàng.', 404);
     const next = await prisma.user.update({ where: { id: userId }, data: { status, sessionVersion: { increment: 1 } } });
     await prisma.activityLog.create({ data: { userId, action: `CUSTOMER_${status}`, metadata: { actorId } } });
@@ -67,13 +67,12 @@ export const accountService = {
 
   async revokeSessions(userId: string, actorId: string) {
     if (userId === actorId) throw new AppError('FORBIDDEN', 'Bạn không thể thu hồi phiên của chính mình bằng thao tác này.', 400);
-    const result = await prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx) => {
       const user = await tx.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } }, select: { sessionVersion: true } });
       const sessions = await tx.session.deleteMany({ where: { userId } });
       await tx.activityLog.create({ data: { userId, action: 'CUSTOMER_SESSIONS_REVOKED', metadata: { actorId } } });
       return { deletedSessions: sessions.count, sessionVersion: user.sessionVersion };
     });
-    return result;
   },
 
   async softDelete(userId: string, actorId: string) {
