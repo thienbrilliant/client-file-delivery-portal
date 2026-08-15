@@ -5,17 +5,9 @@ import { AppError } from '@/server/errors';
 
 export const TOKEN_BYTES = 32;
 
-export function createShareToken() {
-  return randomBytes(TOKEN_BYTES).toString('base64url');
-}
-
-export function hashShareToken(token: string) {
-  return createHash('sha256').update(token, 'utf8').digest('hex');
-}
-
-export function createSharePassword() {
-  return randomBytes(12).toString('base64url');
-}
+export function createShareToken() { return randomBytes(TOKEN_BYTES).toString('base64url'); }
+export function hashShareToken(token: string) { return createHash('sha256').update(token, 'utf8').digest('hex'); }
+export function createSharePassword() { return randomBytes(12).toString('base64url'); }
 
 export function assertShareLinkActive(link: { isActive: boolean; expiresAt: Date | null; maxDownloads: number | null; downloadCount: number }) {
   const now = new Date();
@@ -40,11 +32,9 @@ export async function createDelivery(input: { projectId: string; title: string; 
 
 export async function createShareLink(input: { deliveryId: string; password?: string | null; expiresAt?: Date | null; maxDownloads?: number | null }) {
   const token = createShareToken();
-  const tokenHash = hashShareToken(token);
-  const passwordHash = input.password ? await hashPassword(input.password) : null;
-  const delivery = await prisma.delivery.findUnique({ where: { id: input.deliveryId }, select: { id: true, projectId: true } });
+  const delivery = await prisma.delivery.findUnique({ where: { id: input.deliveryId }, select: { id: true } });
   if (!delivery) throw new AppError('DELIVERY_NOT_FOUND', 'Không tìm thấy bàn giao.', 404);
-  const link = await prisma.shareLink.create({ data: { deliveryId: input.deliveryId, tokenHash, passwordHash, expiresAt: input.expiresAt ?? null, maxDownloads: input.maxDownloads ?? null } });
+  const link = await prisma.shareLink.create({ data: { deliveryId: input.deliveryId, tokenHash: hashShareToken(token), passwordHash: input.password ? await hashPassword(input.password) : null, expiresAt: input.expiresAt ?? null, maxDownloads: input.maxDownloads ?? null } });
   return { link, token };
 }
 
@@ -66,8 +56,15 @@ export async function verifySharePassword(linkId: string, password: string) {
 
 export async function registerDownload(input: { shareLinkId: string; fileId: string; ipAddress?: string | null; userAgent?: string | null; userId?: string | null }) {
   return prisma.$transaction(async (tx) => {
-    const updated = await tx.shareLink.updateMany({ where: { id: input.shareLinkId, isActive: true, AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, { OR: [{ maxDownloads: null }, { downloadCount: { lt: tx.shareLink.fields?.maxDownloads as never } }] }] }, data: { downloadCount: { increment: 1 }, lastAccessedAt: new Date() } });
-    if (updated.count !== 1) {
+    const updated = await tx.$executeRaw`
+      UPDATE "ShareLink"
+      SET "downloadCount" = "downloadCount" + 1, "lastAccessedAt" = NOW()
+      WHERE "id" = ${input.shareLinkId}
+        AND "isActive" = true
+        AND ("expiresAt" IS NULL OR "expiresAt" > NOW())
+        AND ("maxDownloads" IS NULL OR "downloadCount" < "maxDownloads")
+    `;
+    if (updated !== 1) {
       const link = await tx.shareLink.findUnique({ where: { id: input.shareLinkId }, select: { isActive: true, expiresAt: true, maxDownloads: true, downloadCount: true } });
       if (!link) throw new AppError('SHARE_LINK_NOT_FOUND', 'Link không hợp lệ.', 404);
       assertShareLinkActive(link);
