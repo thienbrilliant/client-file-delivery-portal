@@ -2,9 +2,9 @@ import { createHash, randomBytes } from 'node:crypto';
 import { prisma } from '@/lib/db/prisma';
 import { hashPassword, verifyPassword } from '@/lib/security/password';
 import { AppError } from '@/server/errors';
+import type { Prisma } from '@/generated/prisma/client';
 
 export const TOKEN_BYTES = 32;
-
 export function createShareToken() { return randomBytes(TOKEN_BYTES).toString('base64url'); }
 export function hashShareToken(token: string) { return createHash('sha256').update(token, 'utf8').digest('hex'); }
 export function createSharePassword() { return randomBytes(12).toString('base64url'); }
@@ -30,11 +30,11 @@ export async function createDelivery(input: { projectId: string; title: string; 
   });
 }
 
-export async function createShareLink(input: { deliveryId: string; password?: string | null; expiresAt?: Date | null; maxDownloads?: number | null }) {
+export async function createShareLink(input: { deliveryId: string; password?: string | null; expiresAt?: Date | null; maxDownloads?: number | null }, db: Prisma.TransactionClient | typeof prisma = prisma) {
   const token = createShareToken();
-  const delivery = await prisma.delivery.findUnique({ where: { id: input.deliveryId }, select: { id: true } });
+  const delivery = await db.delivery.findUnique({ where: { id: input.deliveryId }, select: { id: true } });
   if (!delivery) throw new AppError('DELIVERY_NOT_FOUND', 'Không tìm thấy bàn giao.', 404);
-  const link = await prisma.shareLink.create({ data: { deliveryId: input.deliveryId, tokenHash: hashShareToken(token), passwordHash: input.password ? await hashPassword(input.password) : null, expiresAt: input.expiresAt ?? null, maxDownloads: input.maxDownloads ?? null } });
+  const link = await db.shareLink.create({ data: { deliveryId: input.deliveryId, tokenHash: hashShareToken(token), passwordHash: input.password ? await hashPassword(input.password) : null, expiresAt: input.expiresAt ?? null, maxDownloads: input.maxDownloads ?? null } });
   return { link, token };
 }
 
