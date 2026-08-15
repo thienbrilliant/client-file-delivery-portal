@@ -25,7 +25,7 @@ enum DeliveryStatus {
   VIEWED
   DOWNLOADED
   EXPIRED
-  LOCKED
+  REVOKED
   COMPLETED
 }
 
@@ -146,6 +146,7 @@ model DeliveryFile {
   fileId String
   delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
   file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
   @@unique([deliveryId, fileId])
   @@index([deliveryId])
   @@index([fileId])
@@ -159,6 +160,7 @@ model ShareLink {
   maxDownloads Int?
   downloadCount Int @default(0)
   isActive Boolean @default(true)
+  lastAccessedAt DateTime?
   delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
   downloadLogs DownloadLog[]
   createdAt DateTime @default(now())
