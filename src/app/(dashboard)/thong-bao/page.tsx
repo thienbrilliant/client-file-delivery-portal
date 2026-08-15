@@ -1,6 +1,9 @@
-import { Bell } from 'lucide-react';
-import { SectionPage } from '@/components/layout/section-page';
+import { auth } from '../../../../auth';
+import { NotificationService } from '@/server/notification-service';
+import { NotificationList } from '@/components/portal/notification-list';
 
-export default function NotificationsPage() {
-  return <SectionPage title="Thông báo" description="Xem các cập nhật liên quan đến tệp, dự án và bàn giao." icon={Bell} />;
+export default async function NotificationsPage() {
+  const session = await auth();
+  const [items, unreadCount] = await Promise.all([NotificationService.listForUser(session!.user.id), NotificationService.unreadCount(session!.user.id)]);
+  return <NotificationList initialItems={items.map((item) => ({ ...item, createdAt: item.createdAt.toISOString() }))} initialUnread={unreadCount} />;
 }
