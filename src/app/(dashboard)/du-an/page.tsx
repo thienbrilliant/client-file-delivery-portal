@@ -23,11 +23,20 @@ export default function ProjectsPage() {
   }, [q]);
 
   useEffect(() => {
-    void load();
-    void fetch('/api/customers').then((response) => response.json()).then((json) => setCustomers(json.data?.items ?? []));
-    // Data fetching is the external synchronization this effect is responsible for.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-  }, [load]);
+    let cancelled = false;
+    async function loadInitialData() {
+      const [projectsResponse, customersResponse] = await Promise.all([
+        fetch(`/api/projects?q=${encodeURIComponent(q)}`),
+        fetch('/api/customers'),
+      ]);
+      const [projectsJson, customersJson] = await Promise.all([projectsResponse.json(), customersResponse.json()]);
+      if (cancelled) return;
+      setItems(projectsJson.data?.items ?? []);
+      setCustomers(customersJson.data?.items ?? []);
+    }
+    void loadInitialData();
+    return () => { cancelled = true; };
+  }, [q]);
 
   return <SectionPage title="Dự án" description="Theo dõi tiến độ, trạng thái và các tệp thuộc từng dự án." icon={FolderKanban}>
     <div className="space-y-5">
