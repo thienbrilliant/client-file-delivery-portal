@@ -1,6 +1,13 @@
-import { Send } from 'lucide-react';
-import { SectionPage } from '@/components/layout/section-page';
+import Link from 'next/link';
+import { Package, Plus } from 'lucide-react';
+import { prisma } from '@/lib/db/prisma';
+import { requireAdmin } from '@/server/require-auth';
+import { Button } from '@/components/ui/button';
 
-export default function DeliveriesPage() {
-  return <SectionPage title="Bàn giao" description="Theo dõi các gói bàn giao, trạng thái xem và lịch sử tải xuống." icon={Send} />;
-}
+export default async function DeliveriesPage() {
+  await requireAdmin();
+  const deliveries = await prisma.delivery.findMany({
+    orderBy: { updatedAt: 'desc' },
+    take: 50,
+    include: {
+      project
