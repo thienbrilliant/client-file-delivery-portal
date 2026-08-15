@@ -18,6 +18,11 @@ export const ERROR_CODES = {
   INVALID_SHARE_PASSWORD: 'INVALID_SHARE_PASSWORD',
   FILE_NOT_IN_DELIVERY: 'FILE_NOT_IN_DELIVERY',
   DOWNLOAD_NOT_ALLOWED: 'DOWNLOAD_NOT_ALLOWED',
+  INVALID_INVITATION: 'INVALID_INVITATION',
+  INVALID_RESET_TOKEN: 'INVALID_RESET_TOKEN',
+  RATE_LIMITED: 'RATE_LIMITED',
+  INVALID_INPUT: 'INVALID_INPUT',
+  STORAGE_UNAVAILABLE: 'STORAGE_UNAVAILABLE',
 } as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
@@ -30,9 +35,7 @@ export class AppError extends Error {
 }
 
 export function errorResponse(error: unknown) {
-  if (error instanceof AppError) {
-    return Response.json({ data: null, error: { code: error.code, message: error.message } }, { status: error.status });
-  }
+  if (error instanceof AppError) return Response.json({ data: null, error: { code: error.code, message: error.message } }, { status: error.status });
   console.error(error);
   return Response.json({ data: null, error: { code: 'INTERNAL_ERROR', message: 'Đã xảy ra lỗi. Vui lòng thử lại.' } }, { status: 500 });
 }
