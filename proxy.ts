@@ -10,4 +10,4 @@ export const proxy = auth(async (request) => {
   if (cookieVersion !== String(user.sessionVersion)) return Response.redirect(new URL('/dang-nhap?error=session-revoked', request.url));
 });
 
-export const config = { matcher: ['/((?!api/auth|api/account/activate|api/account/password-reset|api/health|api/public|_next/static|_next/image|favicon.ico|dang-nhap|account/activate|account/reset-password).*)'] };
+export const config = { matcher: ['/((?!api/auth|api/account/activate|api/account/password-reset|api/health|api/public|_next/static|_next/image|favicon.ico|dang-nhap|account/activate|account/reset-password|delivery).*)'] };
