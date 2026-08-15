@@ -9,8 +9,25 @@ import { prisma } from '@/lib/db/prisma';
 
 function name(value: unknown) { const v = String(value ?? '').trim(); if (!v || v.length > 255 || v === '.' || v === '..' || v.includes('\0') || v.includes('/') || v.includes('\\')) throw new AppError('INVALID_FILE', 'Tên file không hợp lệ.'); return v; }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try { const actor = await requireActor(); const { id } = await params; if (!(await canViewFile(actor, id))) throw new AppError('FORBIDDEN', 'Bạn không có quyền truy cập file này.', 403); const file = await fileRepository.findById(id); if (!file) throw new AppError('FILE_NOT_FOUND', 'Không tìm thấy file.', 404); const storage = createStorageProvider(); if (!(await storage.exists(file.storageKey))) throw new AppError('FILE_NOT_FOUND', 'Không tìm thấy file.', 404); const stream = await storage.download(file.storageKey); await prisma.downloadLog.create({ data: { fileId: file.id, userId: actor.id } }); await logActivity({ userId: actor.id, projectId: file.projectId, action: 'FILE_DOWNLOADED', metadata: { fileId: file.id, fileName: file.originalName } }); return new Response(stream, { headers: { 'Content-Type': file.mimeType, 'Content-Length': file.size.toString(), 'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.originalName)}`, 'Cache-Control': 'private, no-store' } }); } catch (error) { return errorResponse(error); }
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const actor = await requireActor();
+    const { id } = await params;
+    if (!(await canViewFile(actor, id))) throw new AppError('FORBIDDEN', 'Bạn không có quyền truy cập file này.', 403);
+    const file = await fileRepository.findById(id);
+    if (!file) throw new AppError('FILE_NOT_FOUND', 'Không tìm thấy file.', 404);
+    const storage = createStorageProvider();
+    if (!(await storage.exists(file.storageKey))) throw new AppError('FILE_NOT_FOUND', 'Không tìm thấy file.', 404);
+    await prisma.downloadLog.create({ data: { fileId: file.id, userId: actor.id } });
+    await logActivity({ userId: actor.id, projectId: file.projectId, action: 'FILE_DOWNLOADED', metadata: { fileId: file.id, fileName: file.originalName } });
+    if ((process.env.STORAGE_PROVIDER ?? 'local') !== 'local') {
+      const expiresIn = Math.min(Number(process.env.SIGNED_URL_EXPIRES_SECONDS ?? 300), 900);
+      const url = await storage.getSignedUrl(file.storageKey, expiresIn);
+      return Response.redirect(url, 302);
+    }
+    const stream = await storage.download(file.storageKey);
+    return new Response(stream, { headers: { 'Content-Type': file.mimeType, 'Content-Length': file.size.toString(), 'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.originalName)}`, 'Cache-Control': 'private, no-store' } });
+  } catch (error) { return errorResponse(error); }
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
