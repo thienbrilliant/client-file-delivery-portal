@@ -74,6 +74,7 @@ model Project {
   name String
   description String?
   status ProjectStatus @default(DRAFT)
+  customerUploadEnabled Boolean @default(false)
   customer User @relation("ProjectCustomer", fields: [customerId], references: [id], onDelete: Cascade)
   folders Folder[]
   files File[]
@@ -204,6 +205,7 @@ model Notification {
   type NotificationType
   title String
   message String
+  href String?
   isRead Boolean @default(false)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
