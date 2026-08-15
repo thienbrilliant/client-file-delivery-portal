@@ -3,39 +3,15 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
-datasource db {
-  provider = "postgresql"
-}
+datasource db { provider = "postgresql" }
 
-enum Role {
-  ADMIN
-  CUSTOMER
-}
-
-enum ProjectStatus {
-  DRAFT
-  IN_PROGRESS
-  READY
-  ARCHIVED
-}
-
-enum DeliveryStatus {
-  PREPARING
-  READY
-  VIEWED
-  DOWNLOADED
-  EXPIRED
-  REVOKED
-  COMPLETED
-}
-
-enum NotificationType {
-  DELIVERY_READY
-  FILE_DOWNLOADED
-  FILE_UPLOADED
-  PROJECT_UPDATED
-  SYSTEM
-}
+enum Role { ADMIN CUSTOMER }
+enum UserStatus { INVITED ACTIVE SUSPENDED DISABLED }
+enum ProjectStatus { DRAFT IN_PROGRESS READY ARCHIVED }
+enum DeliveryStatus { PREPARING READY VIEWED DOWNLOADED EXPIRED REVOKED COMPLETED }
+enum NotificationType { DELIVERY_READY FILE_DOWNLOADED FILE_UPLOADED PROJECT_UPDATED SYSTEM }
+enum JobStatus { PENDING RUNNING COMPLETED FAILED }
+enum UploadStatus { PENDING UPLOADING COMPLETED FAILED EXPIRED CANCELED }
 
 model User {
   id String @id @default(cuid())
@@ -45,6 +21,10 @@ model User {
   name String?
   avatarUrl String?
   role Role @default(CUSTOMER)
+  status UserStatus @default(ACTIVE)
+  lastLoginAt DateTime?
+  sessionVersion Int @default(0)
+  deletedAt DateTime?
   customerProfile CustomerProfile?
   projectsOwned Project[] @relation("ProjectCustomer")
   filesUploaded File[] @relation("FileUploader")
@@ -53,11 +33,17 @@ model User {
   notifications Notification[]
   accounts Account[]
   sessions Session[]
+  invitations AccountInvitation[]
+  passwordResets PasswordResetToken[]
+  jobsCreated Job[] @relation("JobCreator")
+  uploadSessions UploadSession[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([role])
+  @@index([status])
   @@index([createdAt])
 }
+
 model CustomerProfile {
   id String @id @default(cuid())
   userId String @unique
@@ -68,6 +54,7 @@ model CustomerProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
 model Project {
   id String @id @default(cuid())
   customerId String
@@ -80,12 +67,15 @@ model Project {
   files File[]
   deliveries Delivery[]
   activities ActivityLog[]
+  uploadSessions UploadSession[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   @@index([customerId])
   @@index([status])
   @@index([createdAt])
+  @@index([updatedAt])
 }
+
 model Folder {
   id String @id @default(cuid())
   projectId String
@@ -100,6 +90,7 @@ model Folder {
   @@index([projectId])
   @@index([parentId])
 }
+
 model File {
   id String @id @default(cuid())
   projectId String
@@ -123,6 +114,7 @@ model File {
   @@index([uploadedById])
   @@index([createdAt])
 }
+
 model Delivery {
   id String @id @default(cuid())
   projectId String
@@ -141,6 +133,7 @@ model Delivery {
   @@index([expiresAt])
   @@index([createdAt])
 }
+
 model DeliveryFile {
   id String @id @default(cuid())
   deliveryId String
@@ -152,6 +145,7 @@ model DeliveryFile {
   @@index([deliveryId])
   @@index([fileId])
 }
+
 model ShareLink {
   id String @id @default(cuid())
   deliveryId String
@@ -170,6 +164,7 @@ model ShareLink {
   @@index([expiresAt])
   @@index([isActive])
 }
+
 model DownloadLog {
   id String @id @default(cuid())
   fileId String
@@ -186,6 +181,7 @@ model DownloadLog {
   @@index([shareLinkId])
   @@index([createdAt])
 }
+
 model ActivityLog {
   id String @id @default(cuid())
   userId String?
@@ -199,6 +195,7 @@ model ActivityLog {
   @@index([projectId])
   @@index([createdAt])
 }
+
 model Notification {
   id String @id @default(cuid())
   userId String
@@ -213,6 +210,71 @@ model Notification {
   @@index([userId, isRead])
   @@index([createdAt])
 }
+
+model AccountInvitation {
+  id String @id @default(cuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id String @id @default(cuid())
+  userId String
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Job {
+  id String @id @default(cuid())
+  type String
+  status JobStatus @default(PENDING)
+  payload Json
+  idempotencyKey String @unique
+  attempts Int @default(0)
+  maxAttempts Int @default(3)
+  lastError String?
+  availableAt DateTime @default(now())
+  startedAt DateTime?
+  completedAt DateTime?
+  createdById String?
+  createdBy User? @relation("JobCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, availableAt])
+  @@index([type, status])
+  @@index([createdAt])
+}
+
+model UploadSession {
+  id String @id @default(cuid())
+  projectId String
+  userId String
+  storageKey String
+  status UploadStatus @default(PENDING)
+  totalSize BigInt
+  uploadedSize BigInt @default(0)
+  mimeType String
+  originalName String
+  chunkSize Int
+  expiresAt DateTime
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([projectId])
+  @@index([userId])
+  @@index([status, expiresAt])
+}
+
 model Account {
   userId String
   type String
