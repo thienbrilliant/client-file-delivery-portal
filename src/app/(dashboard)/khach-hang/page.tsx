@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Search, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,16 +16,29 @@ export default function CustomersPage() {
   const [form, setForm] = useState({ name: '', email: '', companyName: '' });
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = async () => {
     const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
     const json = await res.json();
     setItems(json.data?.items ?? []);
     setLoading(false);
-  }, [q]);
+  };
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let cancelled = false;
+
+    async function loadInitialCustomers() {
+      const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
+      const json = await res.json();
+      if (cancelled) return;
+      setItems(json.data?.items ?? []);
+      setLoading(false);
+    }
+
+    void loadInitialCustomers();
+    return () => {
+      cancelled = true;
+    };
+  }, [q]);
 
   return (
     <SectionPage title="Khách hàng" description="Quản lý hồ sơ khách hàng và các dự án được bàn giao." icon={Users}>
@@ -44,12 +57,7 @@ export default function CustomersPage() {
         <div className="overflow-x-auto rounded-[8px] border border-[var(--border)]">
           <table className="w-full min-w-[680px] text-sm">
             <thead className="bg-[var(--surface-muted)] text-left text-[var(--muted)]">
-              <tr>
-                <th className="px-4 py-3">Khách hàng</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Dự án</th>
-                <th className="px-4 py-3">File</th>
-              </tr>
+              <tr><th className="px-4 py-3">Khách hàng</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Dự án</th><th className="px-4 py-3">File</th></tr>
             </thead>
             <tbody>
               {loading ? (
