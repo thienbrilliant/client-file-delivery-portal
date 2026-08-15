@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const actor = await requireActor(); const { id: projectId } = await params;
     if (!(await canViewProject(actor, projectId))) throw new AppError('FORBIDDEN', 'Bạn không có quyền truy cập dự án này.', 403);
-    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { customerId: true, customerUploadEnabled: true, name: true } });
+    const project = await prisma.project.findUnique({ where: { id: projectId }, select: { customerId: true, customerUploadEnabled: true, name: true, customer: { select: { name: true } } } });
     if (!project || project.customerId !== actor.id || !project.customerUploadEnabled) throw new AppError('FORBIDDEN', 'Dự án này chưa cho phép khách hàng gửi file.', 403);
     const form = await request.formData(); const entries = form.getAll('files').filter((value): value is File => value instanceof File);
     if (!entries.length) throw new AppError('INVALID_FILE', 'Chưa chọn file.'); if (entries.length > MAX_FILES) throw new AppError('INVALID_FILE', `Chỉ được gửi tối đa ${MAX_FILES} file mỗi lần.`);
@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     await logActivity({ userId: actor.id, projectId, action: 'CUSTOMER_FILE_UPLOADED', metadata: { count: created.length, fileIds: created.map((file) => file.id) } });
     const admins = await prisma.user.findMany({ where: { role: 'ADMIN' }, select: { id: true } });
-    await Promise.all(admins.map((admin) => NotificationService.create({ userId: admin.id, type: 'FILE_UPLOADED', title: 'Khách hàng đã gửi file', message: `${actor.id === project.customerId ? 'Khách hàng' : 'Người dùng'} đã gửi ${created.length} file vào ${project.name}.`, href: `/du-an/${projectId}`, idempotencyKey: `${projectId}:${created.map((file) => file.id).join(',')}:${admin.id}` })));
+    await Promise.all(admins.map((admin) => NotificationService.create({ userId: admin.id, type: 'FILE_UPLOADED', title: 'Khách hàng đã gửi file', message: `${project.customer.name ?? 'Khách hàng'} đã gửi ${created.length} file vào ${project.name}.`, href: `/du-an/${projectId}`, idempotencyKey: `${projectId}:${created.map((file) => file.id).join(',')}:${admin.id}` })));
     return Response.json({ data: created, error: null }, { status: 201 });
   } catch (error) { return errorResponse(error); }
 }
