@@ -3,7 +3,9 @@ generator client {
   output   = "../src/generated/prisma"
 }
 
-datasource db { provider = "postgresql" }
+datasource db {
+  provider = "postgresql"
+}
 
 enum Role { ADMIN CUSTOMER }
 enum ProjectStatus { DRAFT IN_PROGRESS READY ARCHIVED }
