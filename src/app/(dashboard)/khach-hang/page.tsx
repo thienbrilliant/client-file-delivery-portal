@@ -7,44 +7,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SectionPage } from '@/components/layout/section-page';
 
-type Customer = { id: string; name: string | null; email: string; customerProfile?: { companyName: string | null } | null; _count: { projectsOwned: number; filesUploaded: number } };
+type Customer = { id: string; name: string | null; email: string; status: 'INVITED' | 'ACTIVE' | 'SUSPENDED' | 'DISABLED'; customerProfile?: { companyName: string | null } | null; _count: { projectsOwned: number; filesUploaded: number } };
+const statusLabel: Record<Customer['status'], string> = { INVITED: 'Chờ kích hoạt', ACTIVE: 'Đang hoạt động', SUSPENDED: 'Tạm khóa', DISABLED: 'Đã vô hiệu hóa' };
 
 export default function CustomersPage() {
-  const [items, setItems] = useState<Customer[]>([]);
-  const [q, setQ] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ name: '', email: '', companyName: '' });
-  const [saving, setSaving] = useState(false);
-
-  const load = async () => {
-    const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
-    const json = await res.json();
-    setItems(json.data?.items ?? []);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadInitialCustomers() {
-      const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`);
-      const json = await res.json();
-      if (cancelled) return;
-      setItems(json.data?.items ?? []);
-      setLoading(false);
-    }
-    // The effect synchronizes this client view with the server's customer collection.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void loadInitialCustomers();
-    return () => { cancelled = true; };
-  }, [q]);
-
-  return (
-    <SectionPage title="Khách hàng" description="Quản lý hồ sơ khách hàng và các dự án được bàn giao." icon={Users}>
-      <div className="space-y-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="relative w-full sm:max-w-sm"><Search className="absolute left-3 top-2.5 h-4 w-4 text-[var(--muted)]" /><Input value={q} onChange={(event) => setQ(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && void load()} placeholder="Tìm khách hàng..." className="pl-9" /></div><Button onClick={() => document.getElementById('customer-form')?.scrollIntoView({ behavior: 'smooth' })}><Plus className="h-4 w-4" />Thêm khách hàng</Button></div>
-        <div className="overflow-x-auto rounded-[8px] border border-[var(--border)]"><table className="w-full min-w-[680px] text-sm"><thead className="bg-[var(--surface-muted)] text-left text-[var(--muted)]"><tr><th className="px-4 py-3">Khách hàng</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Dự án</th><th className="px-4 py-3">File</th></tr></thead><tbody>{loading?<tr><td colSpan={4} className="px-4 py-12 text-center text-[var(--muted)]">Đang tải...</td></tr>:items.length===0?<tr><td colSpan={4} className="px-4 py-12 text-center text-[var(--muted)]">Chưa có khách hàng.</td></tr>:items.map((customer)=><tr key={customer.id} className="border-t border-[var(--border)]"><td className="px-4 py-3 font-medium"><Link className="hover:underline" href={`/khach-hang/${customer.id}`}>{customer.name||'Chưa đặt tên'}</Link></td><td className="px-4 py-3 text-[var(--muted)]">{customer.email}</td><td className="px-4 py-3">{customer._count.projectsOwned}</td><td className="px-4 py-3">{customer._count.filesUploaded}</td></tr>)}</tbody></table></div>
-        <div id="customer-form" className="rounded-[8px] border border-[var(--border)] p-5"><h2 className="font-semibold">Thêm khách hàng</h2><div className="mt-4 grid gap-3 sm:grid-cols-3"><Input placeholder="Họ và tên" value={form.name} onChange={(event)=>setForm({...form,name:event.target.value})}/><Input placeholder="Email" type="email" value={form.email} onChange={(event)=>setForm({...form,email:event.target.value})}/><Input placeholder="Công ty" value={form.companyName} onChange={(event)=>setForm({...form,companyName:event.target.value})}/></div><div className="mt-3 flex justify-end"><Button disabled={saving} onClick={async()=>{setSaving(true);const response=await fetch('/api/customers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)});if(response.ok){setForm({name:'',email:'',companyName:''});await load();}setSaving(false);}}>{saving?'Đang lưu...':'Tạo khách hàng'}</Button></div></div>
-      </div>
-    </SectionPage>
-  );
+  const [items, setItems] = useState<Customer[]>([]); const [q, setQ] = useState(''); const [loading, setLoading] = useState(true); const [form, setForm] = useState({ name: '', email: '', companyName: '' }); const [saving, setSaving] = useState(false); const [activationUrl, setActivationUrl] = useState('');
+  const load = async () => { setLoading(true); const res = await fetch(`/api/customers?q=${encodeURIComponent(q)}`); const json = await res.json(); setItems(json.data?.items ?? []); setLoading(false); };
+  useEffect(() => { let cancelled = false; fetch(`/api/customers?q=${encodeURIComponent(q)}`).then(r => r.json()).then(json => { if (!cancelled) { setItems(json.data?.items ?? []); setLoading(false); } }); return () => { cancelled = true; }; }, [q]);
+  async function createCustomer() {
+    setSaving(true); setActivationUrl('');
+    try {
+      const response = await fetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
+      const body = await response.json();
+      if (!response.ok) { window.alert(body.error?.message ?? 'Không thể tạo khách hàng.'); return; }
+      const invitation = await fetch(`/api/customers/${body.data.id}/invitation`, { method: 'POST' });
+      const invitationBody = await invitation.json();
+      if (invitation.ok) setActivationUrl(invitationBody.data.activationUrl);
+      setForm({ name: '', email: '', companyName: '' }); await load();
+    } finally { setSaving(false); }
+  }
+  return <SectionPage title="Khách hàng" description="Quản lý tài khoản, quyền truy cập và các dự án được bàn giao." icon={Users}>
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="relative w-full sm:max-w-sm"><Search className="absolute left-3 top-2.5 h-4 w-4 text-[var(--muted)]" /><Input value={q} onChange={event => setQ(event.target.value)} placeholder="Tìm khách hàng..." className="pl-9" /></div><Button onClick={() => document.getElementById('customer-form')?.scrollIntoView({ behavior: 'smooth' })}><Plus className="h-4 w-4" />Thêm khách hàng</Button></div>
+      <div className="overflow-x-auto rounded-[8px] border border-[var(--border)]"><table className="w-full min-w-[780px] text-sm"><thead className="bg-[var(--surface-muted)] text-left text-[var(--muted)]"><tr><th className="px-4 py-3">Khách hàng</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3">Dự án</th><th className="px-4 py-3">File</th><th className="px-4 py-3">Công ty</th></tr></thead><tbody>{loading ? <tr><td colSpan={5} className="px-4 py-12 text-center text-[var(--muted)]">Đang tải...</td></tr> : items.length === 0 ? <tr><td colSpan={5} className="px-4 py-12 text-center text-[var(--muted)]">Chưa có khách hàng.</td></tr> : items.map(customer => <tr key={customer.id} className="border-t border-[var(--border)]"><td className="px-4 py-3"><Link className="font-medium hover:underline" href={`/khach-hang/${customer.id}`}>{customer.name || 'Chưa đặt tên'}</Link><p className="mt-0.5 text-xs text-[var(--muted)]">{customer.email}</p></td><td className="px-4 py-3"><span className="rounded-full bg-[var(--surface-muted)] px-2.5 py-1 text-xs">● {statusLabel[customer.status]}</span></td><td className="px-4 py-3">{customer._count.projectsOwned}</td><td className="px-4 py-3">{customer._count.filesUploaded}</td><td className="px-4 py-3 text-[var(--muted)]">{customer.customerProfile?.companyName || '—'}</td></tr>)}</tbody></table></div>
+      <div id="customer-form" className="surface rounded-[10px] p-5"><h2 className="font-semibold">Thêm khách hàng</h2><p className="mt-1 text-sm text-[var(--muted)]">Khách hàng sẽ nhận lời mời và tự đặt mật khẩu.</p><div className="mt-4 grid gap-3 sm:grid-cols-3"><Input placeholder="Họ và tên" value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} /><Input placeholder="Email" type="email" value={form.email} onChange={event => setForm({ ...form, email: event.target.value })} /><Input placeholder="Công ty" value={form.companyName} onChange={event => setForm({ ...form, companyName: event.target.value })} /></div><div className="mt-3 flex justify-end"><Button disabled={saving} onClick={createCustomer}>{saving ? 'Đang tạo...' : 'Tạo khách hàng'}</Button></div>{activationUrl && <div className="mt-4 rounded-[9px] border border-[var(--border)] bg-[var(--surface-muted)] p-4"><p className="text-sm font-medium">Lời mời đã được tạo</p><p className="mt-1 break-all text-xs text-[var(--muted)]">{activationUrl}</p><div className="mt-3 flex gap-2"><Button variant="secondary" onClick={() => void navigator.clipboard.writeText(activationUrl)}>Sao chép link</Button></div></div>}</div>
+    </div>
+  </SectionPage>;
 }
