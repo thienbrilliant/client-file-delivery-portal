@@ -8,7 +8,7 @@ import { logActivity } from '@/server/activity';
 const schema = z.object({ password: z.string().min(8).max(200).nullable().optional(), generatePassword: z.boolean().optional(), expiresAt: z.string().datetime().nullable().optional(), maxDownloads: z.number().int().positive().nullable().optional() });
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  try { await requireAdmin(); const { id } = await params; const items = await prisma.shareLink.findMany({ where: { deliveryId: id }, orderBy: { createdAt: 'desc' }, select: { id: true, expiresAt: true, maxDownloads: true, downloadCount: true, isActive: true, lastAccessedAt: true, createdAt: true } }); return Response.json({ data: items, error: null }); } catch (error) { return errorResponse(error); }
+  try { await requireAdmin(); const { id } = await params; const items = await prisma.shareLink.findMany({ where: { deliveryId: id }, orderBy: { createdAt: 'desc' }, select: { id: true, passwordHash: true, expiresAt: true, maxDownloads: true, downloadCount: true, isActive: true, lastAccessedAt: true, createdAt: true } }); return Response.json({ data: items.map(({ passwordHash, ...item }) => ({ ...item, hasPassword: Boolean(passwordHash) })), error: null }); } catch (error) { return errorResponse(error); }
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
