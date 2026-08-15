@@ -35,6 +35,7 @@
     "next-auth": "5.0.0-beta.32",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "redis": "6.1.0",
     "zod": "4.4.3",
     "@prisma/adapter-pg": "7.9.1",
     "pg": "8.16.3",
