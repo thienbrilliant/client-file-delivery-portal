@@ -7,10 +7,35 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role { ADMIN CUSTOMER }
-enum ProjectStatus { DRAFT IN_PROGRESS READY ARCHIVED }
-enum DeliveryStatus { PREPARING READY VIEWED DOWNLOADED EXPIRED LOCKED COMPLETED }
-enum NotificationType { DELIVERY_READY FILE_DOWNLOADED FILE_UPLOADED PROJECT_UPDATED SYSTEM }
+enum Role {
+  ADMIN
+  CUSTOMER
+}
+
+enum ProjectStatus {
+  DRAFT
+  IN_PROGRESS
+  READY
+  ARCHIVED
+}
+
+enum DeliveryStatus {
+  PREPARING
+  READY
+  VIEWED
+  DOWNLOADED
+  EXPIRED
+  LOCKED
+  COMPLETED
+}
+
+enum NotificationType {
+  DELIVERY_READY
+  FILE_DOWNLOADED
+  FILE_UPLOADED
+  PROJECT_UPDATED
+  SYSTEM
+}
 
 model User {
   id String @id @default(cuid())
