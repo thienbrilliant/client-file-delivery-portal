@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-export function CustomerAccountActions({ id, status }: { id: string; status: string }) {
+export function CustomerAccountActions({ id, status, email }: { id: string; status: string; email: string }) {
   const router = useRouter(); const [busy, setBusy] = useState(false);
   async function request(path: string, body?: unknown) {
     setBusy(true);
@@ -16,7 +16,7 @@ export function CustomerAccountActions({ id, status }: { id: string; status: str
   }
   async function invite() { const data = await request(`/api/customers/${id}/invitation`); if (data?.activationUrl) { await navigator.clipboard.writeText(data.activationUrl); window.alert('Đã tạo lời mời mới và sao chép link kích hoạt.'); } }
   async function reset() { if (!window.confirm('Gửi yêu cầu đặt lại mật khẩu cho khách hàng này?')) return; await request(`/api/customers/${id}/password-reset`); }
-  async function remove() { if (!window.confirm('Xóa tài khoản khách hàng? Tài khoản sẽ bị vô hiệu hóa và dữ liệu dự án/file sẽ được giữ lại.')) return; await request(`/api/customers/${id}/account`, { action: 'delete' }); }
+  async function remove() { if (!window.confirm(`Tài khoản ${email} sẽ bị vô hiệu hóa và dữ liệu sẽ được giữ lại. Tiếp tục?`)) return; const typed = window.prompt(`Nhập email ${email} để xác nhận:`); if (typed?.trim().toLowerCase() !== email.toLowerCase()) return; await request(`/api/customers/${id}/account`, { action: 'delete' }); }
   return <div className="flex flex-wrap gap-2">
     {status === 'INVITED' && <button disabled={busy} onClick={invite} className="rounded-[9px] border border-[var(--border)] px-3 py-2 text-sm font-medium">Gửi lại lời mời</button>}
     {status !== 'INVITED' && status !== 'DISABLED' && <button disabled={busy} onClick={reset} className="rounded-[9px] border border-[var(--border)] px-3 py-2 text-sm font-medium">Yêu cầu đặt lại mật khẩu</button>}
