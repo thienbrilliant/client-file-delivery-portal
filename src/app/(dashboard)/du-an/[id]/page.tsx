@@ -40,10 +40,23 @@ export default function ProjectDetail({params}:{params:Promise<{id:string}>}) {
   }, [folderId, id, q]);
 
   useEffect(() => {
-    void load();
-    // Data fetching is the external synchronization this effect is responsible for.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-  }, [load]);
+    if (!id) return;
+    let cancelled = false;
+    async function loadProjectData() {
+      const [projectResponse, folderResponse, fileResponse] = await Promise.all([
+        fetch(`/api/projects?id=${id}`),
+        fetch(`/api/folders?projectId=${id}${folderId ? `&parentId=${folderId}` : ''}`),
+        fetch(`/api/files?projectId=${id}${folderId ? `&folderId=${folderId}` : ''}&q=${encodeURIComponent(q)}`),
+      ]);
+      const [projectJson, folderJson, fileJson] = await Promise.all([projectResponse.json(), folderResponse.json(), fileResponse.json()]);
+      if (cancelled) return;
+      setProject(projectJson.data);
+      setFolders(folderJson.data??[]);
+      setFiles(fileJson.data?.items??[]);
+    }
+    void loadProjectData();
+    return () => { cancelled = true; };
+  }, [folderId, id, q]);
 
   if(!project) return <div className="p-8 text-sm text-[var(--muted)]">Đang tải dự án...</div>;
 
