@@ -4,7 +4,7 @@
 
 Client File Delivery Portal is a production-oriented foundation for a calm, professional SaaS that stores project files and delivers them securely to clients.
 
-Milestone 1 established the application shell, authentication boundary, database model, storage abstraction, theme system, accessibility-oriented UI primitives, security headers, seed data, and developer tooling. Milestone 2 extends that foundation with real customer, project, folder and file-management workflows. Milestone 3 turns those files into secure delivery packages with controlled public sharing.
+Milestone 1 established the application shell, authentication boundary, database model, storage abstraction, theme system, accessibility-oriented UI primitives, security headers, seed data, and developer tooling. Milestone 2 extends that foundation with real customer, project, folder and file-management workflows. Milestone 3 turns those files into secure delivery packages with controlled public sharing. Milestone 4 adds a customer-owned portal, event-based notifications, customer uploads and a restrained UI/UX refinement.
 
 ## Features
 
@@ -52,6 +52,19 @@ Milestone 1 established the application shell, authentication boundary, database
 - Delivery activity and download logging.
 - Admin delivery creation, file selection and share-link management.
 
+### Milestone 4
+
+- Dedicated `/portal` customer experience with customer-only route guard.
+- Customer dashboard, project list/detail and delivery detail views.
+- Customer file viewing and downloads using existing server-side authorization.
+- Server-enforced project-level `customerUploadEnabled` uploads.
+- Customer notification center with unread/read state and mark-all-read.
+- Delivery-created customer notifications with idempotent business-event keys.
+- Admin notifications for customer-upload events.
+- Customer profile editing and Argon2id password change.
+- Calm/warm semantic design tokens, reduced-motion support and responsive customer navigation.
+- Design and customer-portal documentation.
+
 ## Tech Stack
 
 - Next.js 16
@@ -95,9 +108,19 @@ Admin flow:
 
 Customer flow:
 
+`/portal → Dự án → Bàn giao → xem file → tải xuống`
+
+Public flow:
+
 `/delivery/[token] → password (nếu có) → xem file → xem trước/tải xuống`
 
 See `docs/delivery-system.md` for the lifecycle, token hashing, password protection, expiration, download limits, public authorization and privacy model.
+
+## Customer Portal
+
+See `docs/customer-portal.md` for route isolation, customer upload permissions, notifications, activity visibility and account security.
+
+See `docs/design-system.md` for semantic tokens, motion, responsive behavior and accessibility guidance.
 
 ## Environment Variables
 
@@ -114,7 +137,7 @@ See `docs/delivery-system.md` for the lifecycle, token hashing, password protect
 
 ## Security
 
-The project uses Argon2id password hashing, server-side authentication, role-aware sessions, security headers, path traversal protection, private storage, stable object keys and server-side object authorization. Milestone 3 additionally hashes share tokens, signs password-access cookies, rate-limits password verification and atomically enforces download limits.
+The project uses Argon2id password hashing, server-side authentication, security headers, path traversal protection, private storage, stable object keys and server-side object authorization. Milestone 3 additionally hashes share tokens, signs password-access cookies, rate-limits password verification and atomically enforces download limits. Milestone 4 keeps customer authorization on the server for portal queries and uploads and isolates notifications by authenticated user.
 
 Raw share tokens, passwords, storage keys and file content must never be logged.
 
@@ -124,6 +147,8 @@ Raw share tokens, passwords, storage keys and file content must never be logged.
 - `docs/authorization.md`
 - `docs/file-management.md`
 - `docs/delivery-system.md`
+- `docs/design-system.md`
+- `docs/customer-portal.md`
 
 ## Code Style
 
