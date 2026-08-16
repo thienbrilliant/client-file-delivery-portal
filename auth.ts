@@ -26,7 +26,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma), session: { strategy: 'jwt' }, providers, pages: { signIn: '/dang-nhap' },
   callbacks: {
     async signIn({ user, account }) {
-      if (account?.provider === 'google' && user.id) {
+      if (account?.provider === 'google' && user.id && user.role === 'CUSTOMER') {
         await prisma.user.update({ where: { id: user.id }, data: { status: 'ACTIVE', emailVerified: new Date(), customerProfile: { upsert: { create: {}, update: {} } } } });
       }
       return true;
