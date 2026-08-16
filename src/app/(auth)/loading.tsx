@@ -1,0 +1,3 @@
+export default function AuthLoading() {
+  return <main className="flex min-h-[100svh] items-center justify-center bg-[var(--background)] p-6" aria-label="Đang tải"><div className="w-full max-w-[380px] space-y-4"><div className="h-10 w-10 animate-pulse rounded-[7px] bg-[var(--primary-soft)]" /><div className="h-7 w-40 animate-pulse rounded-[6px] bg-[var(--surface-muted)]" /><div className="h-4 w-64 max-w-full animate-pulse rounded bg-[var(--surface-muted)]" /><div className="surface h-10 animate-pulse rounded-[8px]" /><div className="surface h-10 animate-pulse rounded-[8px]" /><div className="h-10 animate-pulse rounded-[8px] bg-[var(--primary-soft)]" /></div></main>;
+}
