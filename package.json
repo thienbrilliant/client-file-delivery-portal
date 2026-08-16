@@ -1,6 +1,6 @@
 {
   "name": "client-file-delivery-portal",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": false,
   "description": "A self-hosted client portal for managing projects, files, and secure digital deliveries.",
   "scripts": {

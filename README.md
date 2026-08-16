@@ -36,14 +36,14 @@ A self-hosted workspace for managing clients, projects, files, and secure digita
 
 ## Overview
 
-Client File Delivery Portal is designed as a self-hosted application rather than a hosted SaaS product. A deployment owns its database, object storage, authentication configuration, email provider, and background worker.
+Client File Delivery Portal is a self-hosted application rather than a hosted SaaS product. A deployment owns its database, object storage, authentication configuration, email provider, and background worker.
 
 The product has two main experiences:
 
 - **Admin workspace:** customers, projects, files, deliveries, share links, notifications, activity, and settings.
 - **Customer portal:** a focused space where customers can review projects, receive deliveries, download files, and manage their account.
 
-The public delivery flow is intentionally separate from the authenticated workspace so a delivery link can present only the information required to receive a file package.
+The public delivery flow is intentionally separate from the authenticated workspace so a delivery link presents only the information required to receive a file package.
 
 ## Features
 
@@ -53,7 +53,7 @@ Create and manage customer accounts, invitations, account states, and account se
 
 ### Project and file management
 
-Organize files by project and folder, inspect metadata, and keep the file workflow close to the project that owns it.
+Organize files by project and folder, inspect metadata, preview supported files, and keep the file workflow close to the project that owns it.
 
 ### Secure deliveries
 
@@ -61,19 +61,19 @@ Create delivery packages from project files, protect public links with expiratio
 
 ### Customer portal
 
-Customers get a separate, lower-density interface for projects, deliveries, notifications, and account settings.
+Customers get a separate, lower-density interface for projects, deliveries, notifications, file access, uploads when enabled, and account security.
 
 ### Authentication
 
-Credentials authentication, optional Google sign-in configuration, one-time invitations, password reset, account state enforcement, and revocable sessions are supported by the current application architecture.
+Credentials authentication, optional Google sign-in configuration, one-time invitations, password reset, account state enforcement, persistent sessions, and session revocation are supported by the current application architecture.
 
 ### Storage abstraction
 
-Development can use local storage. Production can use S3-compatible object storage, including S3, R2, MinIO, and other compatible endpoints supported by the storage adapter.
+Development can use local storage. Production can use S3-compatible object storage, including AWS S3, Cloudflare R2, MinIO, and other compatible endpoints supported by the storage adapter.
 
 ### Background jobs and email
 
-Durable PostgreSQL-backed jobs support retry and idempotency semantics. Email is provider-agnostic, with development and Resend-oriented infrastructure in the current codebase.
+PostgreSQL-backed jobs support retry and idempotency semantics. Email is provider-agnostic, with development and production-oriented providers in the current codebase.
 
 ### Operational foundations
 
@@ -168,14 +168,12 @@ See [`docs/architecture.md`](docs/architecture.md) for boundaries and data flow.
 
 ## Requirements
 
-Check the package files before upgrading the runtime versions. The current project targets:
-
 - Node.js compatible with the installed Next.js 16 toolchain
 - npm
 - PostgreSQL
 - Optional Redis for distributed rate limiting/cache
 - Optional S3-compatible object storage for production
-- Optional Resend configuration for production email
+- Optional production email provider
 
 ## Quick Start
 
@@ -204,7 +202,7 @@ Run the durable worker separately when testing queued jobs:
 npm run worker
 ```
 
-Do not copy development credentials into production. The seed data is for local development and testing.
+The development seed is for local testing only. Never copy development credentials into production.
 
 ## Docker
 
@@ -226,7 +224,7 @@ The complete safe template lives in [`.env.example`](.env.example). Important va
 | `AUTH_SECRET` | Yes | Auth.js/session secret |
 | `AUTH_URL` | Production | Canonical HTTPS application URL |
 | `NEXT_PUBLIC_APP_NAME` | No | Replaceable product name |
-| `STORAGE_PROVIDER` | No | `local`, `s3`, `r2`, `minio`, or `b2`-style configuration |
+| `STORAGE_PROVIDER` | No | Storage adapter selection |
 | `S3_ENDPOINT` | S3-compatible | Object storage endpoint |
 | `S3_REGION` | S3-compatible | Storage region |
 | `S3_BUCKET` | S3-compatible | Private bucket |
@@ -235,8 +233,7 @@ The complete safe template lives in [`.env.example`](.env.example). Important va
 | `SIGNED_URL_EXPIRES_SECONDS` | No | Short signed download TTL |
 | `REDIS_URL` | Recommended production | Distributed cache/rate-limit backend |
 | `EMAIL_PROVIDER` | No | Development or production email provider |
-| `EMAIL_FROM` | Resend | Verified sender |
-| `RESEND_API_KEY` | Resend | Provider credential |
+| `EMAIL_FROM` | Production email | Verified sender address |
 
 Never commit actual values from `.env`.
 
@@ -273,7 +270,7 @@ The storage layer is responsible for:
 - private objects
 - short-lived signed download URLs
 - upload handling
-- cleanup/error paths
+- cleanup and error paths
 
 See [`docs/storage.md`](docs/storage.md) for provider configuration and lifecycle details.
 
@@ -295,9 +292,9 @@ Session revocation when account state changes
 
 Password reset and invitation tokens are short-lived and stored as hashes where the implementation requires persistent security tokens.
 
-Google sign-in is optional and should only be enabled when the provider credentials are configured for the deployment.
+Google sign-in is optional and only becomes available when provider credentials are configured.
 
-See [`docs/account-lifecycle.md`](docs/account-lifecycle.md) and [`docs/authentication.md`](docs/authentication.md).
+See [`docs/authentication.md`](docs/authentication.md) and [`docs/account-lifecycle.md`](docs/account-lifecycle.md).
 
 ## Projects and Files
 
@@ -329,7 +326,7 @@ See [`docs/delivery-system.md`](docs/delivery-system.md).
 
 ## Customer Portal
 
-The customer experience intentionally uses a different density from the admin workspace. It focuses on projects, deliveries, notifications, and account security rather than exposing internal administration controls.
+The customer experience intentionally uses a different density from the admin workspace. It focuses on projects, deliveries, notifications, file access, uploads when permitted, and account security rather than exposing internal administration controls.
 
 See [`docs/customer-portal.md`](docs/customer-portal.md).
 
@@ -421,3 +418,7 @@ Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request. Securit
 ## License
 
 Client File Delivery Portal is released under the [MIT License](LICENSE). Third-party dependencies and assets may carry their own licenses and notices; review [`docs/licensing.md`](docs/licensing.md) when redistributing the project.
+
+## Acknowledgements
+
+This project is built on open-source software. Third-party licenses and attribution requirements are documented separately where applicable in [`docs/licensing.md`](docs/licensing.md).
