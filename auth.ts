@@ -25,6 +25,12 @@ const providers = [
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma), session: { strategy: 'jwt' }, providers, pages: { signIn: '/dang-nhap' },
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === 'google' && user.id) {
+        await prisma.user.update({ where: { id: user.id }, data: { status: 'ACTIVE', emailVerified: new Date(), customerProfile: { upsert: { create: {}, update: {} } } } });
+      }
+      return true;
+    },
     async jwt({ token, user }) { if (user) { token.id = user.id; token.role = user.role; } return token; },
     async session({ session, token }) { if (session.user && typeof token.id === 'string' && isUserRole(token.role)) { session.user.id = token.id; session.user.role = token.role; } return session; },
     authorized({ auth: session, request }) { const path = request.nextUrl.pathname; return path === '/' || path === '/dang-nhap' || path === '/dang-ky' || path.startsWith('/api/auth/') || Boolean(session?.user); },
