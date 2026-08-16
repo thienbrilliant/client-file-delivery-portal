@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db/prisma';
-import { Prisma } from '@/generated/prisma';
+import { Prisma } from '@/generated/prisma/client';
 
 export type JobType = 'SEND_INVITATION_EMAIL' | 'SEND_PASSWORD_RESET_EMAIL' | 'DELETE_CUSTOMER_DATA' | 'DELETE_STORAGE_OBJECT' | 'CLEAN_EXPIRED_UPLOADS' | 'CLEAN_EXPIRED_INVITATIONS';
 
