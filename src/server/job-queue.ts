@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/db/prisma';
+import { Prisma } from '@/generated/prisma';
 
 export type JobType = 'SEND_INVITATION_EMAIL' | 'SEND_PASSWORD_RESET_EMAIL' | 'DELETE_CUSTOMER_DATA' | 'DELETE_STORAGE_OBJECT' | 'CLEAN_EXPIRED_UPLOADS' | 'CLEAN_EXPIRED_INVITATIONS';
 
-export async function enqueueJob(input: { type: JobType; payload: Record<string, unknown>; idempotencyKey: string; createdById?: string }) {
+export async function enqueueJob(input: { type: JobType; payload: Prisma.InputJsonValue; idempotencyKey: string; createdById?: string }) {
   return prisma.job.upsert({
     where: { idempotencyKey: input.idempotencyKey },
     update: {},
