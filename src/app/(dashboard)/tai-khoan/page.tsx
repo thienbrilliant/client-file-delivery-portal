@@ -1,7 +1,7 @@
 import { auth } from '../../../../auth';
 import { prisma } from '@/lib/db/prisma';
 import { AccountForms } from '@/components/portal/account-forms';
-import { SecurityActions } from '@/components/portal/security-actions';
+import { SecurityActions } from '@/app/portal/account/security-actions';
 
 export default async function AdminAccountPage() {
   const session = await auth();
