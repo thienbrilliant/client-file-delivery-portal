@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { handlers } from '../../../../../auth';
 import { prisma } from '@/lib/db/prisma';
 
 export const GET = handlers.GET;
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   let loginEmail: string | null = null;
   const contentType = request.headers.get('content-type') ?? '';
   if (contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data')) {
