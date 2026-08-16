@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
 import { getShareLinkForToken } from '@/server/delivery';
-import { AppError, errorResponse } from '@/server/errors';
+import { errorResponse } from '@/server/errors';
 import { logActivity } from '@/server/activity';
 
 export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
