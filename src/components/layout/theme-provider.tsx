@@ -8,7 +8,7 @@ function getSystemTheme(): 'light' | 'dark' { return window.matchMedia('(prefers
 function applyTheme(theme: Theme) { const resolved = theme === 'system' ? getSystemTheme() : theme; document.documentElement.classList.toggle('dark', resolved === 'dark'); }
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
-    const saved = (window.localStorage.getItem(STORAGE_KEY) as Theme | null) ?? 'system';
+    const saved = (window.localStorage.getItem(STORAGE_KEY) as Theme | null) ?? 'light';
     applyTheme(saved);
     if (saved !== 'system') return;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
