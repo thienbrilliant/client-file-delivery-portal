@@ -79,7 +79,7 @@ CREATE INDEX "UploadSession_projectId_idx" ON "UploadSession"("projectId");
 CREATE INDEX "UploadSession_userId_idx" ON "UploadSession"("userId");
 CREATE INDEX "UploadSession_status_expiresAt_idx" ON "UploadSession"("status", "expiresAt");
 ALTER TABLE "UploadSession" ADD CONSTRAINT "UploadSession_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "UploadSession" ADD CONSTRAINT "UploadSession_userId_fkey" ON UPDATE CASCADE REFERENCES "User"("id") ON DELETE CASCADE;
+ALTER TABLE "UploadSession" ADD CONSTRAINT "UploadSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 CREATE INDEX "User_status_idx" ON "User"("status");
 CREATE INDEX "Project_updatedAt_idx" ON "Project"("updatedAt");
