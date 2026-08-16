@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db/prisma';
 
 export const proxy = auth(async (request) => {
   const pathname = request.nextUrl.pathname;
+  if (pathname === '/' || pathname === '/dang-ky') return;
   const isStateChanging = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method);
   if (isStateChanging && pathname.startsWith('/api/')) {
     const origin = request.headers.get('origin');
@@ -17,4 +18,4 @@ export const proxy = auth(async (request) => {
   if (cookieVersion !== String(user.sessionVersion)) return Response.redirect(new URL('/dang-nhap?error=session-revoked', request.url));
 });
 
-export const config = { matcher: ['/((?!api/auth|api/account/activate|api/account/password-reset|api/health|api/public|_next/static|_next/image|favicon.ico|dang-nhap|account/activate|account/reset-password|delivery).*)'] };
+export const config = { matcher: ['/((?!api/auth|api/account/activate|api/account/password-reset|api/auth/register|api/health|api/public|_next/static|_next/image|favicon.ico|dang-nhap|dang-ky|account/activate|account/reset-password|delivery).*)'] };
