@@ -13,6 +13,18 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   output: 'standalone',
   devIndicators: false,
+  experimental: {
+    serverActions: {
+      // GitHub Codespaces terminates the public request at a proxy, so the
+      // forwarded host is *.app.github.dev while Next sees localhost:3000.
+      allowedOrigins: [
+        'localhost:3000',
+        '*.app.github.dev',
+        '*.github.dev',
+        '*.githubpreview.dev',
+      ],
+    },
+  },
   async headers() { return [{ source: '/(.*)', headers: securityHeaders }]; },
 };
 
