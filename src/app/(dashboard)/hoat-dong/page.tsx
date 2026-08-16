@@ -1,6 +1,9 @@
-import { Activity } from 'lucide-react';
-import { SectionPage } from '@/components/layout/section-page';
+import { Activity, Clock3 } from 'lucide-react';
+import { auth } from '../../../../auth';
+import { prisma } from '@/lib/db/prisma';
 
-export default function ActivityPage() {
-  return <SectionPage title="Hoạt động" description="Theo dõi lịch sử thao tác và các sự kiện quan trọng trong hệ thống." icon={Activity} />;
+export default async function ActivityPage() {
+  const session = await auth(); const isCustomer = session?.user.role === 'CUSTOMER';
+  const items = await prisma.activityLog.findMany({ where: isCustomer ? { project: { customerId: session!.user.id } } : undefined, include: { user: { select: { name: true } }, project: { select: { name: true } } }, orderBy: { createdAt: 'desc' }, take: 40 });
+  return <div className="space-y-7"><header><p className="text-xs font-semibold uppercase tracking-[.14em] text-[var(--primary)]">Hệ thống</p><h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-[30px]">Hoạt động</h1><p className="mt-2 text-sm leading-6 text-[var(--muted)]">Một timeline để biết ai đã làm gì, ở dự án nào và khi nào.</p></header><section className="surface overflow-hidden rounded-[14px]">{items.length ? <div className="divide-y divide-[var(--border)]">{items.map((item) => <div key={item.id} className="flex gap-4 px-5 py-4"><div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--primary-soft)] text-[var(--primary)]"><Activity className="h-4 w-4" /></div><div className="min-w-0 flex-1"><p className="text-sm"><span className="font-medium">{item.user?.name ?? 'Hệ thống'}</span> · {item.action}</p>{item.project?.name ? <p className="mt-1 text-xs text-[var(--muted)]">{item.project.name}</p> : null}</div><div className="flex shrink-0 items-center gap-1 text-xs text-[var(--muted)]"><Clock3 className="h-3.5 w-3.5" />{item.createdAt.toLocaleString('vi-VN')}</div></div>)}</div> : <div className="px-6 py-16 text-center"><Activity className="mx-auto h-8 w-8 text-[var(--muted)]" /><h2 className="mt-3 text-sm font-semibold">Chưa có hoạt động</h2><p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-[var(--muted)]">Khi bạn tạo dự án, upload file hoặc thực hiện bàn giao, timeline sẽ xuất hiện tại đây.</p></div>}</section></div>;
 }
